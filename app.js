@@ -216,10 +216,15 @@ const nextButton = () => `<button class="next-button" data-action="next">NEXT <s
 const renderHome = () => {
   main.innerHTML = `
     <section class="home-screen" aria-labelledby="homeTitle">
-      <div class="welcome-card"><div class="welcome-copy"><span class="eyebrow">HELLO, LITTLE EXPLORER!</span><h1 id="homeTitle">Pick a mission</h1><p>Listen, look and tap with Foxy.</p></div><img src="${foxAsset('Fox-pointing.jpg')}" alt="Foxy points to the missions"></div>
+      <h1 id="homeTitle" class="sr-only">Fox School Quest Junior missions</h1>
+      <div class="home-video-hero">
+        <video autoplay muted loop playsinline preload="metadata" poster="asset%20images%20scenes/home-scene.jpg" aria-label="Fox School Quest welcome video">
+          <source src="assets/video/home-hero.mp4" type="video/mp4">
+        </video>
+      </div>
       <div class="mission-grid">
         ${Object.entries(SCREENS).map(([key, item]) => `
-          <article class="mission-card theme-${item.colour}"><div class="mission-picture"><span class="mission-icon" aria-hidden="true">${completed[key] ? '✓' : item.icon}</span><img src="${objectAsset(item.picture)}" alt=""></div><div class="mission-copy"><h2>${item.title}</h2><button class="play-button" data-screen="${key}">PLAY <span aria-hidden="true">▶</span></button></div></article>`).join('')}
+          <button class="mission-card theme-${item.colour}" data-screen="${key}" aria-label="Play ${item.title}"><span class="mission-picture"><img src="${objectAsset(item.picture)}" alt=""></span><span class="mission-copy"><span class="mission-title">${item.title}</span><span class="play-button">PLAY <span aria-hidden="true">▶</span></span></span></button>`).join('')}
       </div>
       <div class="home-footer-card"><button class="backpack-wide" data-screen="backpack"><span aria-hidden="true">🎒</span><span><small>YOUR REWARDS</small><b>My Backpack</b></span><strong>OPEN</strong></button><label class="challenge-switch"><input id="challengeToggle" type="checkbox" ${challengeEnabled ? 'checked' : ''}><span aria-hidden="true"></span><b>Time Challenge</b><small>Optional</small></label></div>
     </section>`;
