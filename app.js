@@ -28,12 +28,12 @@ const WORDS = [
 ];
 
 const SCREENS = {
-  listen: { title: 'Listen & Tap', picture: 'pencil.png', icon: '👂', colour: 'blue' },
-  colour: { title: 'Colour Mission', picture: 'crayon.png', icon: '🎨', colour: 'coral' },
-  match: { title: 'Match Pictures', picture: 'book.png', icon: '🃏', colour: 'green' },
-  count: { title: 'Count & Tap', picture: 'pen.png', icon: '⭐', colour: 'yellow' },
-  same: { title: 'Find the Same', picture: 'bag.png', icon: '🔎', colour: 'purple' },
-  missing: { title: 'What’s Missing?', picture: 'sharpener.png', icon: '❓', colour: 'sky' }
+  listen: { title: 'Listen & Tap', picture: 'pencil.png', homeArt: 'fox-pencil.png.png', icon: '👂', colour: 'blue' },
+  colour: { title: 'Colour Mission', picture: 'crayon.png', homeArt: 'fox-colours-brush.png.png', icon: '🎨', colour: 'coral' },
+  match: { title: 'Match Pictures', picture: 'book.png', homeArt: 'fox-book.png.png', icon: '🃏', colour: 'green' },
+  count: { title: 'Count & Tap', picture: 'pen.png', homeArt: 'fox-math-board.png.png', icon: '⭐', colour: 'yellow' },
+  same: { title: 'Find the Same', picture: 'bag.png', homeArt: 'fox-backpack.png.png', icon: '🔎', colour: 'purple' },
+  missing: { title: 'What’s Missing?', picture: 'sharpener.png', homeArt: 'fox-whats-missing.png.png', icon: '❓', colour: 'sky' }
 };
 
 const feedbackFiles = {
@@ -224,7 +224,7 @@ const renderHome = () => {
       </div>
       <div class="mission-grid">
         ${Object.entries(SCREENS).map(([key, item]) => `
-          <button class="mission-card theme-${item.colour}" data-screen="${key}" aria-label="Play ${item.title}"><span class="mission-picture"><img src="${objectAsset(item.picture)}" alt=""></span><span class="mission-copy"><span class="mission-title">${item.title}</span><span class="play-button">PLAY <span aria-hidden="true">▶</span></span></span></button>`).join('')}
+          <button class="mission-card theme-${item.colour}" data-screen="${key}" aria-label="Play ${item.title}"><span class="mission-picture"><img src="${foxAsset(item.homeArt)}" alt=""></span><span class="mission-copy"><span class="mission-title">${item.title}</span><span class="play-button">PLAY <span aria-hidden="true">▶</span></span></span></button>`).join('')}
       </div>
       <div class="home-footer-card"><button class="backpack-wide" data-screen="backpack"><span aria-hidden="true">🎒</span><span><small>YOUR REWARDS</small><b>My Backpack</b></span><strong>OPEN</strong></button><label class="challenge-switch"><input id="challengeToggle" type="checkbox" ${challengeEnabled ? 'checked' : ''}><span aria-hidden="true"></span><b>Time Challenge</b><small>Optional</small></label></div>
     </section>`;
