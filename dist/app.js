@@ -329,9 +329,7 @@ const renderHome = () => {
     <section class="home-screen" aria-labelledby="homeTitle">
       <h1 id="homeTitle" class="sr-only">Fox School Quest Junior missions</h1>
       <div class="home-video-hero">
-        <video autoplay muted loop playsinline preload="metadata" poster="asset%20images%20scenes/home-scene.jpg" aria-label="Fox School Quest welcome video">
-          <source src="assets/video/home-hero.mp4" type="video/mp4">
-        </video>
+        <img src="${foxAsset('Fox-happy.jpg')}" alt="Happy Foxy welcoming young learners">
       </div>
       <div class="mission-grid">
         ${Object.entries(SCREENS).map(([key, item]) => `
@@ -392,7 +390,7 @@ const prepareMatchRound = () => {
 };
 
 const renderMatch = () => {
-  main.innerHTML = `<section class="game-screen">${header('Match Pictures', '🃏', game.round, matchSets.length)}<div class="instruction-row">${listenButton('FIND A PAIR')}</div><div class="match-grid cards-${game.cards.length}">${game.cards.map((card, index) => `<button class="match-card ${card.open || card.matched ? 'open' : ''} ${card.matched ? 'matched' : ''}" data-card="${index}" aria-label="${card.open || card.matched ? card.id : 'Hidden card'}" ${game.locked || card.matched ? 'disabled' : ''}><span class="card-back">?</span><span class="card-face"><img src="${objectAsset(`${card.id}.png`)}" alt="${card.id}"></span></button>`).join('')}</div><div class="game-actions"><span class="gentle-hint">Find the picture twins.</span></div></section>`;
+  main.innerHTML = `<section class="game-screen">${header('Match Pictures', '🃏', game.round, matchSets.length)}<div class="instruction-row">${listenButton('FIND A PAIR')}</div><div class="match-grid cards-${game.cards.length}">${game.cards.map((card, index) => `<button class="match-card ${card.open || card.matched ? 'open' : ''} ${card.matched ? 'matched' : ''}" data-card="${index}" aria-label="${card.open || card.matched ? card.id : 'Hidden card'}" ${game.locked || card.matched ? 'disabled' : ''}><span class="card-back"><img src="${uiAsset('match-card-fox.png.png')}" alt=""></span><span class="card-face"><img src="${objectAsset(`${card.id}.png`)}" alt="${card.id}"></span></button>`).join('')}</div><div class="game-actions"><span class="gentle-hint">Find the picture twins.</span></div></section>`;
 };
 
 const beginCount = () => {
