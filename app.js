@@ -115,6 +115,7 @@ let elapsedTimer = null;
 let gameStartedAt = 0;
 let spokenAudio = null;
 let speechToken = 0;
+let pendingSpeechResolve = null;
 
 const music = new Audio('assets/audio/background-music.mp3');
 music.loop = true;
@@ -133,6 +134,11 @@ const duckMusic = duck => {
 
 const stopSpeech = () => {
   speechToken += 1;
+  if (pendingSpeechResolve) {
+    const resolvePending = pendingSpeechResolve;
+    pendingSpeechResolve = null;
+    resolvePending();
+  }
   if (spokenAudio) {
     spokenAudio.pause();
     spokenAudio.onended = null;
@@ -168,6 +174,44 @@ const speak = (text, file = null) => {
   spokenAudio.onended = () => { if (token === speechToken) duckMusic(false); };
   spokenAudio.onerror = () => speakFallback(text, token);
   spokenAudio.play().catch(() => speakFallback(text, token));
+};
+
+const speakAsync = (text, file = null) => {
+  stopSpeech();
+  if (!soundEnabled) return Promise.resolve();
+  const token = speechToken;
+  duckMusic(true);
+  return new Promise(resolve => {
+    let settled = false;
+    let fallbackStarted = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (pendingSpeechResolve === finish) pendingSpeechResolve = null;
+      if (token === speechToken) duckMusic(false);
+      resolve();
+    };
+    const useEnglishSpeech = () => {
+      if (fallbackStarted || settled) return;
+      fallbackStarted = true;
+      if (token !== speechToken || !('speechSynthesis' in window)) return finish();
+      spokenAudio = null;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-GB';
+      utterance.rate = .78;
+      utterance.pitch = 1.08;
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      speechSynthesis.speak(utterance);
+    };
+    pendingSpeechResolve = finish;
+    if (!file) return useEnglishSpeech();
+    spokenAudio = new Audio(file);
+    spokenAudio.volume = 1;
+    spokenAudio.onended = finish;
+    spokenAudio.onerror = useEnglishSpeech;
+    spokenAudio.play().catch(useEnglishSpeech);
+  });
 };
 
 const playFeedback = kind => {
@@ -323,13 +367,14 @@ const prepareCountRound = () => {
 };
 
 const numberWord = number => ['zero','one','two','three','four','five','six','seven','eight','nine','ten'][number];
+const spokenNumber = number => numberWord(number) || String(number);
 const renderCount = () => {
   const item = game.order[game.round];
   main.innerHTML = `<section class="game-screen">${header('Count & Tap', '⭐', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="count-grid">${game.options.map(number => `<button class="count-choice ${game.solved && number === item.number ? 'correct' : ''}" data-number="${number}" ${game.solved ? 'disabled' : ''}><span class="symbol-cloud">${Array.from({ length: number }, () => `<img src="${learningAsset(item.object)}" alt="">`).join('')}</span>${game.solved && number === item.number ? `<b class="digit-reveal">${number}</b>` : ''}</button>`).join('')}</div><div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>You did it!</b></div>' + nextButton() : '<span class="gentle-hint">Tap the group you hear.</span>'}</div></section>`;
 };
 
 const beginMath = () => {
-  game = { type: 'math', order: mathRounds, round: 0, solved: false };
+  game = { type: 'math', order: mathRounds, round: 0, solved: false, feedbackReady: false };
   renderMath(); startGameClock(); announceMath();
 };
 
@@ -342,12 +387,25 @@ const renderMath = () => {
   const item = game.order[game.round];
   const answer = item.a + item.b;
   const visualGroup = amount => Array.from({ length: amount }, () => `<img src="${learningAsset(item.object)}" alt="">`).join('');
-  main.innerHTML = `<section class="game-screen math-screen">${header('Math Mission', '➕', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="math-panel"><div class="math-visual" aria-hidden="true"><span>${visualGroup(item.a)}</span><b>+</b><span>${visualGroup(item.b)}</span></div><div class="math-equation" aria-label="${item.a} plus ${item.b}">${item.a} + ${item.b} = ?</div><div class="math-answers">${item.answers.map(value => `<button class="math-answer ${game.solved && value === answer ? 'correct' : ''}" data-math="${value}" ${game.solved ? 'disabled' : ''}>${value}</button>`).join('')}</div></div><div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Great job!</b></div>' + nextButton() : '<span class="gentle-hint">Tap the answer.</span>'}</div></section>`;
+  main.innerHTML = `<section class="game-screen math-screen">${header('Math Mission', '➕', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="math-panel"><div class="math-visual" aria-hidden="true"><span>${visualGroup(item.a)}</span><b>+</b><span>${visualGroup(item.b)}</span></div><div class="math-equation" aria-label="${item.a} plus ${item.b}">${item.a} + ${item.b} = ?</div><div class="math-answers">${item.answers.map(value => `<button class="math-answer ${game.solved && value === answer ? 'correct' : ''}" data-math="${value}" ${game.solved ? 'disabled' : ''}>${value}</button>`).join('')}</div></div><div class="game-actions">${game.feedbackReady ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Great job!</b></div>' + nextButton() : '<span class="gentle-hint">' + (game.solved ? '' : 'Tap the answer.') + '</span>'}</div></section>`;
 };
 
 const beginMissing = () => {
-  game = { type: 'missing', order: shuffle(missingRounds), round: 0, phase: 'look', missing: null, options: [], solved: false };
+  game = { type: 'missing', order: shuffle(missingRounds), round: 0, phase: 'look', missing: null, options: [], solved: false, answerPositions: [], lastAnswerPosition: null };
   prepareMissingRound(); startGameClock();
+};
+
+const nextMissingAnswerPosition = () => {
+  if (!game.answerPositions.length) {
+    game.answerPositions = shuffle([0, 1, 2]);
+    if (game.answerPositions[0] === game.lastAnswerPosition) {
+      const swapIndex = 1 + Math.floor(Math.random() * 2);
+      [game.answerPositions[0], game.answerPositions[swapIndex]] = [game.answerPositions[swapIndex], game.answerPositions[0]];
+    }
+  }
+  const position = game.answerPositions.shift();
+  game.lastAnswerPosition = position;
+  return position;
 };
 
 const prepareMissingRound = () => {
@@ -355,7 +413,11 @@ const prepareMissingRound = () => {
   sequenceTimers.forEach(timer => window.clearTimeout(timer)); sequenceTimers = [];
   game.phase = 'present'; game.highlight = -1; game.solved = false; game.missing = set[Math.floor(Math.random() * set.length)];
   const distractors = shuffle(learningObjects.map(word => word.id).filter(id => !set.includes(id))).slice(0, 2);
-  game.options = shuffle([game.missing, ...distractors]);
+  const choices = shuffle([game.missing, ...distractors]);
+  const answerPosition = nextMissingAnswerPosition();
+  const currentPosition = choices.indexOf(game.missing);
+  [choices[currentPosition], choices[answerPosition]] = [choices[answerPosition], choices[currentPosition]];
+  game.options = choices;
   renderMissing();
   set.forEach((id, index) => scheduleSequence(() => {
     game.highlight = index; renderMissing(); sayWord(id);
@@ -429,11 +491,20 @@ const answerCount = button => {
   game.solved = true; renderCount(); speak(`${numberWord(target)}. Great job!`);
 };
 
-const answerMath = button => {
+const answerMath = async button => {
   if (game.solved) return;
   const item = game.order[game.round];
-  if (Number(button.dataset.math) !== item.a + item.b) return wrongAnswer(button);
-  game.solved = true; renderMath(); playFeedback('great');
+  const answer = item.a + item.b;
+  if (Number(button.dataset.math) !== answer) return wrongAnswer(button);
+  const activeGame = game;
+  const activeRound = game.round;
+  game.solved = true; game.feedbackReady = false; renderMath();
+  await speakAsync(`${spokenNumber(answer)}.`);
+  if (game !== activeGame || currentScreen !== 'math' || game.round !== activeRound) return;
+  await new Promise(resolve => window.setTimeout(resolve, 180));
+  await speakAsync('Great job!', feedbackFiles.great);
+  if (game !== activeGame || currentScreen !== 'math' || game.round !== activeRound) return;
+  game.feedbackReady = true; renderMath();
 };
 
 const answerMissing = button => {
@@ -475,7 +546,7 @@ const nextRound = () => {
   if (type === 'listen') prepareListenRound();
   if (type === 'colour') { game.solved = false; renderColour(); announceColour(); }
   if (type === 'count') prepareCountRound();
-  if (type === 'math') { game.solved = false; renderMath(); announceMath(); }
+  if (type === 'math') { game.solved = false; game.feedbackReady = false; renderMath(); announceMath(); }
   if (type === 'missing') prepareMissingRound();
 };
 
