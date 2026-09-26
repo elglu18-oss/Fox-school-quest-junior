@@ -377,7 +377,7 @@ const renderComplete = screen => {
   const seconds = recordCompletion(screen);
   const best = Number(localStorage.getItem(`foxJunior_bestTime_${screen}`) || seconds);
   game = { type: 'complete', completedScreen: screen };
-  main.innerHTML = `<section class="complete-screen"><div class="complete-card"><div class="confetti" aria-hidden="true">★ ✦ ★</div><img src="${foxAsset('Fox-dancing.jpg')}" alt="Foxy dances"><small>MISSION COMPLETE</small><h1>You did it!</h1>${challengeEnabled ? `<div class="time-result"><span>Your time <b>${formatTime(seconds)}</b></span><span>Best <b>${formatTime(best)}</b></span></div>` : ''}<div class="complete-actions"><button class="home-button" data-screen="home">⌂ HOME</button><button class="next-button" data-replay-game="${screen}">PLAY AGAIN ↻</button></div></div></section>`;
+  main.innerHTML = `<section class="complete-screen"><div class="complete-card"><div class="confetti" aria-hidden="true">★ ✦ ★</div><img src="${foxAsset('Fox-happy.jpg')}" alt="Happy Foxy"><small>MISSION COMPLETE</small><h1>You did it!</h1>${challengeEnabled ? `<div class="time-result"><span>Your time <b>${formatTime(seconds)}</b></span><span>Best <b>${formatTime(best)}</b></span></div>` : ''}<div class="complete-actions"><button class="home-button" data-screen="home">⌂ HOME</button><button class="next-button" data-replay-game="${screen}">PLAY AGAIN ↻</button></div></div></section>`;
   playFeedback('complete');
 };
 
