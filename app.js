@@ -79,15 +79,24 @@ const countRounds = [
   { number: 4, object: 'star' }, { number: 3, object: 'book' }
 ];
 
-const mathRounds = [
-  { a: 1, b: 3, answers: [3, 4, 5], object: 'apple' },
-  { a: 1, b: 1, answers: [1, 2, 3], object: 'star' },
-  { a: 1, b: 2, answers: [2, 3, 4], object: 'book' },
-  { a: 2, b: 1, answers: [2, 3, 4], object: 'pencil' },
-  { a: 2, b: 2, answers: [3, 4, 5], object: 'fox' },
-  { a: 3, b: 1, answers: [3, 4, 5], object: 'apple' },
-  { a: 4, b: 1, answers: [3, 4, 5], object: 'star' }
-];
+const mathRoundPools = {
+  easy: [
+    { a: 1, b: 1, object: 'star' }, { a: 1, b: 2, object: 'book' },
+    { a: 2, b: 2, object: 'pencil' }, { a: 2, b: 3, object: 'apple' },
+    { a: 4, b: 1, object: 'fox' }
+  ],
+  medium: [
+    { a: 2, b: 3, object: 'book' }, { a: 3, b: 3, object: 'star' },
+    { a: 2, b: 5, object: 'apple' }, { a: 4, b: 3, object: 'pencil' },
+    { a: 5, b: 3, object: 'fox' }, { a: 4, b: 4, object: 'book' }
+  ],
+  hard: [
+    { a: 4, b: 3, object: 'pencil' }, { a: 5, b: 3, object: 'fox' },
+    { a: 3, b: 6, object: 'star' }, { a: 5, b: 4, object: 'apple' },
+    { a: 7, b: 2, object: 'book' }, { a: 8, b: 1, object: 'pencil' },
+    { a: 6, b: 4, object: 'fox' }, { a: 5, b: 5, object: 'apple' }
+  ]
+};
 
 const missingRounds = [
   ['apple', 'book', 'pencil'], ['star', 'fox', 'book'], ['pencil', 'apple', 'star'],
@@ -117,9 +126,41 @@ let spokenAudio = null;
 let speechToken = 0;
 let pendingSpeechResolve = null;
 
+const MUSIC_VOLUME = .22;
+const DUCKED_MUSIC_VOLUME = .07;
 const music = new Audio('assets/audio/background-music.mp3');
+const musicOwnerId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+const musicChannel = 'BroadcastChannel' in window ? new BroadcastChannel('foxJunior_music') : null;
 music.loop = true;
-music.volume = .22;
+music.volume = MUSIC_VOLUME;
+
+const pauseBackgroundMusic = () => {
+  if (!music.paused) music.pause();
+};
+
+const claimBackgroundMusic = () => {
+  localStorage.setItem('foxJunior_musicOwner', musicOwnerId);
+  musicChannel?.postMessage({ type: 'claim', owner: musicOwnerId });
+};
+
+const playBackgroundMusic = () => {
+  if (!musicEnabled || !music.paused) return;
+  claimBackgroundMusic();
+  music.play().catch(() => {});
+};
+
+musicChannel?.addEventListener('message', event => {
+  if (event.data?.type === 'claim' && event.data.owner !== musicOwnerId) pauseBackgroundMusic();
+});
+
+window.addEventListener('storage', event => {
+  if (event.key === 'foxJunior_musicOwner' && event.newValue !== musicOwnerId) pauseBackgroundMusic();
+  if (event.key === 'foxJunior_musicEnabled' && event.newValue !== null) {
+    musicEnabled = event.newValue !== 'false';
+    if (!musicEnabled) pauseBackgroundMusic();
+    updateAudioButtons();
+  }
+});
 
 const updateAudioButtons = () => {
   soundButton.setAttribute('aria-pressed', String(soundEnabled));
@@ -129,7 +170,7 @@ const updateAudioButtons = () => {
 };
 
 const duckMusic = duck => {
-  music.volume = duck ? .05 : .22;
+  music.volume = duck ? DUCKED_MUSIC_VOLUME : MUSIC_VOLUME;
 };
 
 const stopSpeech = () => {
@@ -374,8 +415,42 @@ const renderCount = () => {
 };
 
 const beginMath = () => {
-  game = { type: 'math', order: mathRounds, round: 0, solved: false, feedbackReady: false };
-  renderMath(); startGameClock(); announceMath();
+  const easy = shuffle(mathRoundPools.easy).slice(0, 2);
+  const medium = shuffle(mathRoundPools.medium).slice(0, 3);
+  const hard = shuffle(mathRoundPools.hard).slice(0, 3);
+  const order = [easy[0], easy[1], medium[0], medium[1], medium[2], hard[0], hard[1], hard[2]];
+  game = { type: 'math', order, round: 0, solved: false, feedbackReady: false, answerPositions: [], lastAnswerPosition: null };
+  prepareMathRound(); startGameClock();
+};
+
+const nextMathAnswerPosition = () => {
+  if (!game.answerPositions.length) {
+    game.answerPositions = shuffle([0, 1, 2]);
+    if (game.answerPositions[0] === game.lastAnswerPosition) {
+      const swapIndex = 1 + Math.floor(Math.random() * 2);
+      [game.answerPositions[0], game.answerPositions[swapIndex]] = [game.answerPositions[swapIndex], game.answerPositions[0]];
+    }
+  }
+  const position = game.answerPositions.shift();
+  game.lastAnswerPosition = position;
+  return position;
+};
+
+const prepareMathRound = () => {
+  const item = game.order[game.round];
+  const answer = item.a + item.b;
+  const distractors = shuffle([answer - 2, answer - 1, answer + 1, answer + 2])
+    .filter(value => value >= 1 && value <= 10)
+    .slice(0, 2);
+  const answers = shuffle([answer, ...distractors]);
+  const answerPosition = nextMathAnswerPosition();
+  const currentPosition = answers.indexOf(answer);
+  [answers[currentPosition], answers[answerPosition]] = [answers[answerPosition], answers[currentPosition]];
+  item.answers = answers;
+  game.solved = false;
+  game.feedbackReady = false;
+  renderMath();
+  announceMath();
 };
 
 const announceMath = () => {
@@ -386,8 +461,8 @@ const announceMath = () => {
 const renderMath = () => {
   const item = game.order[game.round];
   const answer = item.a + item.b;
-  const visualGroup = amount => Array.from({ length: amount }, () => `<img src="${learningAsset(item.object)}" alt="">`).join('');
-  main.innerHTML = `<section class="game-screen math-screen">${header('Math Mission', '➕', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="math-panel"><div class="math-visual" aria-hidden="true"><span>${visualGroup(item.a)}</span><b>+</b><span>${visualGroup(item.b)}</span></div><div class="math-equation" aria-label="${item.a} plus ${item.b}">${item.a} + ${item.b} = ?</div><div class="math-answers">${item.answers.map(value => `<button class="math-answer ${game.solved && value === answer ? 'correct' : ''}" data-math="${value}" ${game.solved ? 'disabled' : ''}>${value}</button>`).join('')}</div></div><div class="game-actions">${game.feedbackReady ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Great job!</b></div>' + nextButton() : '<span class="gentle-hint">' + (game.solved ? '' : 'Tap the answer.') + '</span>'}</div></section>`;
+  const visualGroup = amount => `<span class="${amount > 5 ? 'many' : ''}">${Array.from({ length: amount }, () => `<img src="${learningAsset(item.object)}" alt="">`).join('')}</span>`;
+  main.innerHTML = `<section class="game-screen math-screen">${header('Math Mission', '➕', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="math-panel"><div class="math-visual" aria-hidden="true">${visualGroup(item.a)}<b>+</b>${visualGroup(item.b)}</div><div class="math-equation" aria-label="${item.a} plus ${item.b}">${item.a} + ${item.b} = ?</div><div class="math-answers">${item.answers.map(value => `<button class="math-answer ${game.solved && value === answer ? 'correct' : ''}" data-math="${value}" ${game.solved ? 'disabled' : ''}>${value}</button>`).join('')}</div></div><div class="game-actions">${game.feedbackReady ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Great job!</b></div>' + nextButton() : '<span class="gentle-hint">' + (game.solved ? '' : 'Tap the answer.') + '</span>'}</div></section>`;
 };
 
 const beginMissing = () => {
@@ -546,7 +621,7 @@ const nextRound = () => {
   if (type === 'listen') prepareListenRound();
   if (type === 'colour') { game.solved = false; renderColour(); announceColour(); }
   if (type === 'count') prepareCountRound();
-  if (type === 'math') { game.solved = false; game.feedbackReady = false; renderMath(); announceMath(); }
+  if (type === 'math') prepareMathRound();
   if (type === 'missing') prepareMissingRound();
 };
 
@@ -565,7 +640,7 @@ const replayInstruction = () => {
 };
 
 document.addEventListener('click', event => {
-  if (musicEnabled && music.paused) music.play().catch(() => {});
+  playBackgroundMusic();
   const screenButton = event.target.closest('[data-screen]');
   if (screenButton) return renderScreen(screenButton.dataset.screen);
   const replay = event.target.closest('[data-action="replay"]'); if (replay) return replayInstruction();
@@ -594,7 +669,7 @@ soundButton.addEventListener('click', () => {
 
 musicButton.addEventListener('click', () => {
   musicEnabled = !musicEnabled; localStorage.setItem('foxJunior_musicEnabled', String(musicEnabled));
-  if (musicEnabled) music.play().catch(() => {}); else music.pause(); updateAudioButtons();
+  if (musicEnabled) playBackgroundMusic(); else pauseBackgroundMusic(); updateAudioButtons();
 });
 
 updateAudioButtons();
