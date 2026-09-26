@@ -5,6 +5,7 @@ const musicButton = document.getElementById('musicToggle');
 
 const objectAsset = file => `assets%20images%20objects/${file}`;
 const foxAsset = file => `assets%20images%20fox/${file}`;
+const learningAsset = file => `assets/images/objects/object-${file}.png`;
 const shuffle = items => {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i -= 1) {
@@ -32,7 +33,7 @@ const SCREENS = {
   colour: { title: 'Colour Mission', picture: 'crayon.png', homeArt: 'fox-colours-brush.png.png', icon: '🎨', colour: 'coral' },
   match: { title: 'Match Pictures', picture: 'book.png', homeArt: 'fox-book.png.png', icon: '🃏', colour: 'green' },
   count: { title: 'Count & Tap', picture: 'pen.png', homeArt: 'fox-math-board.png.png', icon: '⭐', colour: 'yellow' },
-  same: { title: 'Find the Same', picture: 'bag.png', homeArt: 'fox-backpack.png.png', icon: '🔎', colour: 'purple' },
+  math: { title: 'Math Mission', picture: 'object-star.png', homeArt: 'fox-math-board.png.png', icon: '➕', colour: 'purple', learningPicture: 'star' },
   missing: { title: 'What’s Missing?', picture: 'sharpener.png', homeArt: 'fox-whats-missing.png.png', icon: '❓', colour: 'sky' }
 };
 
@@ -63,37 +64,53 @@ const matchSets = [
   ['pen', 'notebook', 'scissors', 'sharpener']
 ];
 
-const countRounds = [
-  { number: 1, symbol: '🍎' }, { number: 2, symbol: '⭐' }, { number: 3, symbol: '✏️' },
-  { number: 4, symbol: '📚' }, { number: 5, symbol: '🦊' }, { number: 6, symbol: '🖍️' },
-  { number: 7, symbol: '🍎' }, { number: 8, symbol: '⭐' }, { number: 9, symbol: '✏️' },
-  { number: 10, symbol: '📚' }
+const learningObjects = [
+  { id: 'pencil', audio: 'assets/audio/words/pencil.mp3' },
+  { id: 'star', audio: null },
+  { id: 'fox', audio: null },
+  { id: 'book', audio: 'assets/audio/words/book.mp3' },
+  { id: 'apple', audio: null }
 ];
 
-const sameRounds = [
-  { target: ['bag', 'red'], choices: [['bag', 'red'], ['bag', 'blue'], ['book', 'red']] },
-  { target: ['book', 'blue'], choices: [['book', 'green'], ['bag', 'blue'], ['book', 'blue']] },
-  { target: ['pencil', 'yellow'], choices: [['pencil', 'yellow'], ['pencil', 'red'], ['pen', 'yellow']] },
-  { target: ['ruler', 'green'], choices: [['ruler', 'blue'], ['crayon', 'green'], ['ruler', 'green']] },
-  { target: ['notebook', 'red'], choices: [['book', 'red'], ['notebook', 'red'], ['notebook', 'blue']] },
-  { target: ['sharpener', 'blue'], choices: [['sharpener', 'blue'], ['rubber', 'blue'], ['sharpener', 'green']] }
+const countRounds = [
+  { number: 1, object: 'apple' }, { number: 2, object: 'star' },
+  { number: 3, object: 'pencil' }, { number: 4, object: 'book' },
+  { number: 5, object: 'fox' }, { number: 2, object: 'apple' },
+  { number: 4, object: 'star' }, { number: 3, object: 'book' }
+];
+
+const mathRounds = [
+  { a: 1, b: 3, answers: [3, 4, 5], object: 'apple' },
+  { a: 1, b: 1, answers: [1, 2, 3], object: 'star' },
+  { a: 1, b: 2, answers: [2, 3, 4], object: 'book' },
+  { a: 2, b: 1, answers: [2, 3, 4], object: 'pencil' },
+  { a: 2, b: 2, answers: [3, 4, 5], object: 'fox' },
+  { a: 3, b: 1, answers: [3, 4, 5], object: 'apple' },
+  { a: 4, b: 1, answers: [3, 4, 5], object: 'star' }
 ];
 
 const missingRounds = [
-  ['book', 'bag', 'pencil'], ['ruler', 'rubber', 'crayon'], ['pen', 'notebook', 'scissors'],
-  ['sharpener', 'book', 'ruler'], ['bag', 'crayon', 'rubber'], ['pencil', 'notebook', 'pen']
+  ['apple', 'book', 'pencil'], ['star', 'fox', 'book'], ['pencil', 'apple', 'star'],
+  ['fox', 'book', 'apple'], ['book', 'pencil', 'star'], ['apple', 'fox', 'pencil']
 ];
 
 let completed = (() => {
   try { return JSON.parse(localStorage.getItem('foxJunior_progress') || '{}'); }
   catch { return {}; }
 })();
+if (Object.prototype.hasOwnProperty.call(completed, 'same')) {
+  const { same: oldFindSame, ...currentProgress } = completed;
+  completed = currentProgress;
+  localStorage.setItem('foxJunior_progress', JSON.stringify(completed));
+  localStorage.removeItem('foxJunior_bestTime_same');
+}
 let soundEnabled = localStorage.getItem('foxJunior_soundEnabled') !== 'false';
 let musicEnabled = localStorage.getItem('foxJunior_musicEnabled') !== 'false';
 let challengeEnabled = localStorage.getItem('foxJunior_timeChallenge') === 'true';
 let currentScreen = 'home';
 let game = null;
 let screenTimer = null;
+let sequenceTimers = [];
 let elapsedTimer = null;
 let gameStartedAt = 0;
 let spokenAudio = null;
@@ -159,7 +176,7 @@ const playFeedback = kind => {
 };
 
 const sayWord = id => {
-  const word = WORDS.find(item => item.id === id);
+  const word = learningObjects.find(item => item.id === id) || WORDS.find(item => item.id === id);
   speak(id, word?.audio || null);
 };
 
@@ -171,9 +188,17 @@ const showToast = message => {
 
 const clearScreenTimers = () => {
   window.clearTimeout(screenTimer);
+  sequenceTimers.forEach(timer => window.clearTimeout(timer));
+  sequenceTimers = [];
   window.clearInterval(elapsedTimer);
   screenTimer = null;
   elapsedTimer = null;
+};
+
+const scheduleSequence = (callback, delay) => {
+  const timer = window.setTimeout(callback, delay);
+  sequenceTimers.push(timer);
+  return timer;
 };
 
 const startGameClock = () => {
@@ -263,7 +288,8 @@ const announceColour = () => {
 
 const renderColour = () => {
   const item = game.order[game.round];
-  main.innerHTML = `<section class="game-screen">${header('Colour Mission', '🎨', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="colour-board"><div class="paint-object ${game.solved ? `painted paint-${item.colour}` : ''}"><img src="${objectAsset(`${item.id}.png`)}" alt="${item.id}"></div><div class="swatches" aria-label="Choose a colour">${['red','blue','yellow','green'].map(colour => `<button class="swatch swatch-${colour} ${game.solved && colour === item.colour ? 'correct' : ''}" data-colour="${colour}" aria-label="${colour}" ${game.solved ? 'disabled' : ''}></button>`).join('')}</div></div><div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Well done!</b></div>' + nextButton() : '<span class="gentle-hint">Choose a paint colour.</span>'}</div></section>`;
+  const image = ['pencil', 'book'].includes(item.id) ? learningAsset(item.id) : objectAsset(`${item.id}.png`);
+  main.innerHTML = `<section class="game-screen">${header('Colour Mission', '🎨', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="colour-board"><div class="paint-object ${game.solved ? `painted paint-${item.colour}` : ''}"><img src="${image}" alt="${item.id}"></div><div class="swatches" aria-label="Choose a colour">${['red','blue','yellow','green'].map(colour => `<button class="swatch swatch-${colour} ${game.solved && colour === item.colour ? 'correct' : ''}" data-colour="${colour}" aria-label="${colour}" ${game.solved ? 'disabled' : ''}></button>`).join('')}</div></div><div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Well done!</b></div>' + nextButton() : '<span class="gentle-hint">Choose a paint colour.</span>'}</div></section>`;
 };
 
 const beginMatch = () => {
@@ -299,19 +325,24 @@ const prepareCountRound = () => {
 const numberWord = number => ['zero','one','two','three','four','five','six','seven','eight','nine','ten'][number];
 const renderCount = () => {
   const item = game.order[game.round];
-  main.innerHTML = `<section class="game-screen">${header('Count & Tap', '⭐', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="count-grid">${game.options.map(number => `<button class="count-choice ${game.solved && number === item.number ? 'correct' : ''}" data-number="${number}" ${game.solved ? 'disabled' : ''}><span class="symbol-cloud">${Array.from({ length: number }, () => `<i>${item.symbol}</i>`).join('')}</span>${game.solved && number === item.number ? `<b class="digit-reveal">${number}</b>` : ''}</button>`).join('')}</div><div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>You did it!</b></div>' + nextButton() : '<span class="gentle-hint">Tap the group you hear.</span>'}</div></section>`;
+  main.innerHTML = `<section class="game-screen">${header('Count & Tap', '⭐', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="count-grid">${game.options.map(number => `<button class="count-choice ${game.solved && number === item.number ? 'correct' : ''}" data-number="${number}" ${game.solved ? 'disabled' : ''}><span class="symbol-cloud">${Array.from({ length: number }, () => `<img src="${learningAsset(item.object)}" alt="">`).join('')}</span>${game.solved && number === item.number ? `<b class="digit-reveal">${number}</b>` : ''}</button>`).join('')}</div><div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>You did it!</b></div>' + nextButton() : '<span class="gentle-hint">Tap the group you hear.</span>'}</div></section>`;
 };
 
-const beginSame = () => {
-  game = { type: 'same', order: shuffle(sameRounds), round: 0, solved: false };
-  renderSame(); startGameClock(); screenTimer = window.setTimeout(() => speak('Find the same picture.'), 350);
+const beginMath = () => {
+  game = { type: 'math', order: mathRounds, round: 0, solved: false };
+  renderMath(); startGameClock(); announceMath();
 };
 
-const colourClass = colour => `tint-${colour}`;
-const samePicture = ([id, colour], extra = '') => `<span class="tinted-picture ${colourClass(colour)} ${extra}"><img src="${objectAsset(`${id}.png`)}" alt="${colour} ${id}"></span>`;
-const renderSame = () => {
+const announceMath = () => {
   const item = game.order[game.round];
-  main.innerHTML = `<section class="game-screen">${header('Find the Same', '🔎', game.round, game.order.length)}<div class="same-target"><small>LOOK</small>${samePicture(item.target)}</div><div class="same-arrow" aria-hidden="true">↓</div><div class="same-grid">${shuffle(item.choices).map(choice => { const correct = choice[0] === item.target[0] && choice[1] === item.target[1]; return `<button class="same-choice ${game.solved && correct ? 'correct' : ''}" data-same="${choice.join(':')}" ${game.solved ? 'disabled' : ''}>${samePicture(choice)}</button>`; }).join('')}</div><div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Great job!</b></div>' + nextButton() : '<span class="gentle-hint">Find its picture twin.</span>'}</div></section>`;
+  screenTimer = window.setTimeout(() => speak(`${numberWord(item.a)} plus ${numberWord(item.b)} equals.`), 350);
+};
+
+const renderMath = () => {
+  const item = game.order[game.round];
+  const answer = item.a + item.b;
+  const visualGroup = amount => Array.from({ length: amount }, () => `<img src="${learningAsset(item.object)}" alt="">`).join('');
+  main.innerHTML = `<section class="game-screen math-screen">${header('Math Mission', '➕', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="math-panel"><div class="math-visual" aria-hidden="true"><span>${visualGroup(item.a)}</span><b>+</b><span>${visualGroup(item.b)}</span></div><div class="math-equation" aria-label="${item.a} plus ${item.b}">${item.a} + ${item.b} = ?</div><div class="math-answers">${item.answers.map(value => `<button class="math-answer ${game.solved && value === answer ? 'correct' : ''}" data-math="${value}" ${game.solved ? 'disabled' : ''}>${value}</button>`).join('')}</div></div><div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Great job!</b></div>' + nextButton() : '<span class="gentle-hint">Tap the answer.</span>'}</div></section>`;
 };
 
 const beginMissing = () => {
@@ -321,17 +352,25 @@ const beginMissing = () => {
 
 const prepareMissingRound = () => {
   const set = game.order[game.round];
-  game.phase = 'look'; game.solved = false; game.missing = set[Math.floor(Math.random() * set.length)];
-  const distractors = shuffle(WORDS.map(word => word.id).filter(id => !set.includes(id))).slice(0, 2);
+  sequenceTimers.forEach(timer => window.clearTimeout(timer)); sequenceTimers = [];
+  game.phase = 'present'; game.highlight = -1; game.solved = false; game.missing = set[Math.floor(Math.random() * set.length)];
+  const distractors = shuffle(learningObjects.map(word => word.id).filter(id => !set.includes(id))).slice(0, 2);
   game.options = shuffle([game.missing, ...distractors]);
   renderMissing();
-  screenTimer = window.setTimeout(() => { game.phase = 'choose'; renderMissing(); speak('What’s missing?'); }, 2800);
+  set.forEach((id, index) => scheduleSequence(() => {
+    game.highlight = index; renderMissing(); sayWord(id);
+  }, 600 + index * 2000));
+  scheduleSequence(() => { game.highlight = -1; game.phase = 'pause'; renderMissing(); }, 6600);
+  scheduleSequence(() => { game.phase = 'choose'; renderMissing(); speak('What’s missing?'); }, 8200);
 };
 
 const renderMissing = () => {
   const set = game.order[game.round];
-  const visible = game.phase === 'look' ? set : set.filter(id => id !== game.missing);
-  main.innerHTML = `<section class="game-screen">${header('What’s Missing?', '❓', game.round, game.order.length)}<div class="instruction-row">${listenButton(game.phase === 'look' ? 'LOOK' : 'LISTEN')}</div><div class="memory-stage ${game.phase}">${visible.map(id => `<div class="memory-object"><img src="${objectAsset(`${id}.png`)}" alt="${id}"></div>`).join('')}${game.phase !== 'look' ? '<div class="memory-object empty"><span>?</span></div>' : ''}</div>${game.phase === 'look' ? '<div class="look-message">Look carefully…</div>' : `<div class="missing-grid">${game.options.map(id => `<button class="missing-choice ${game.solved && id === game.missing ? 'correct' : ''}" data-missing="${id}" ${game.solved ? 'disabled' : ''}><img src="${objectAsset(`${id}.png`)}" alt="${id}"></button>`).join('')}</div>`}<div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Well done!</b></div>' + nextButton() : '<span class="gentle-hint">' + (game.phase === 'look' ? 'Remember the pictures.' : 'Which picture went away?') + '</span>'}</div></section>`;
+  const choosing = game.phase === 'choose';
+  const slots = set.map((id, index) => choosing && id === game.missing
+    ? '<div class="memory-object empty"><span>?</span></div>'
+    : `<div class="memory-object ${game.highlight === index ? 'highlighted' : ''}"><img src="${learningAsset(id)}" alt="${id}"></div>`).join('');
+  main.innerHTML = `<section class="game-screen">${header('What’s Missing?', '❓', game.round, game.order.length)}<div class="instruction-row">${listenButton(choosing ? 'LISTEN' : 'LOOK')}</div><div class="memory-stage ${game.phase}">${slots}</div>${choosing ? `<div class="missing-grid">${game.options.map(id => `<button class="missing-choice" data-missing="${id}" ${game.solved ? 'disabled' : ''}><img src="${learningAsset(id)}" alt="${id}"></button>`).join('')}</div>` : '<div class="look-message">Look carefully…</div>'}<div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Well done!</b></div>' + nextButton() : '<span class="gentle-hint">' + (choosing ? 'Which picture went away?' : 'Remember the pictures.') + '</span>'}</div></section>`;
 };
 
 const renderComplete = screen => {
@@ -344,7 +383,7 @@ const renderComplete = screen => {
 
 const renderBackpack = () => {
   game = null;
-  main.innerHTML = `<section class="backpack-screen">${header('My Backpack', '🎒', 0, 0)}<div class="backpack-intro"><img src="${foxAsset('Fox-happy.jpg')}" alt="Happy Foxy"><div><span>YOUR REWARDS</span><h2>Keep exploring!</h2></div></div><div class="reward-grid">${Object.entries(SCREENS).map(([key, item]) => `<article class="reward-card ${completed[key] ? 'earned' : 'locked'}"><div class="reward-picture"><img src="${objectAsset(item.picture)}" alt=""><span aria-hidden="true">${completed[key] ? '★' : '?'}</span></div><h3>${item.title}</h3><b>${completed[key] ? '✓ COMPLETED!' : 'NOT COMPLETED'}</b></article>`).join('')}</div></section>`;
+  main.innerHTML = `<section class="backpack-screen">${header('My Backpack', '🎒', 0, 0)}<div class="backpack-intro"><img src="${foxAsset('Fox-happy.jpg')}" alt="Happy Foxy"><div><span>YOUR REWARDS</span><h2>Keep exploring!</h2></div></div><div class="reward-grid">${Object.entries(SCREENS).map(([key, item]) => `<article class="reward-card ${completed[key] ? 'earned' : 'locked'}"><div class="reward-picture"><img src="${item.learningPicture ? learningAsset(item.learningPicture) : objectAsset(item.picture)}" alt=""><span aria-hidden="true">${completed[key] ? '★' : '?'}</span></div><h3>${item.title}</h3><b>${completed[key] ? '✓ COMPLETED!' : 'NOT COMPLETED'}</b></article>`).join('')}</div></section>`;
 };
 
 const renderScreen = screen => {
@@ -355,7 +394,7 @@ const renderScreen = screen => {
   else if (screen === 'colour') beginColour();
   else if (screen === 'match') beginMatch();
   else if (screen === 'count') beginCount();
-  else if (screen === 'same') beginSame();
+  else if (screen === 'math') beginMath();
   else if (screen === 'missing') beginMissing();
   else if (screen === 'backpack') renderBackpack();
   main.focus({ preventScroll: true });
@@ -373,7 +412,8 @@ const answerListen = button => {
   if (game.solved) return;
   const target = game.order[game.round];
   if (button.dataset.answer !== target) return wrongAnswer(button);
-  game.solved = true; renderListen(); playFeedback(['great','well','didIt'][game.round % 3]);
+  game.solved = true; renderListen(); sayWord(target);
+  scheduleSequence(() => playFeedback(['great','well','didIt'][game.round % 3]), 900);
 };
 
 const answerColour = button => {
@@ -389,18 +429,18 @@ const answerCount = button => {
   game.solved = true; renderCount(); speak(`${numberWord(target)}. Great job!`);
 };
 
-const answerSame = button => {
+const answerMath = button => {
   if (game.solved) return;
   const item = game.order[game.round];
-  if (button.dataset.same !== item.target.join(':')) return wrongAnswer(button);
-  game.solved = true; renderSame(); playFeedback('great');
+  if (Number(button.dataset.math) !== item.a + item.b) return wrongAnswer(button);
+  game.solved = true; renderMath(); playFeedback('great');
 };
 
 const answerMissing = button => {
   if (game.solved || game.phase !== 'choose') return;
   if (button.dataset.missing !== game.missing) return wrongAnswer(button);
-  game.solved = true; renderMissing();
-  speak(`${game.missing}. Well done!`, WORDS.find(word => word.id === game.missing)?.audio || null);
+  game.solved = true; game.phase = 'restored'; renderMissing(); sayWord(game.missing);
+  scheduleSequence(() => playFeedback('well'), 1000);
 };
 
 const flipMatch = button => {
@@ -425,14 +465,17 @@ const flipMatch = button => {
 };
 
 const nextRound = () => {
+  sequenceTimers.forEach(timer => window.clearTimeout(timer));
+  sequenceTimers = [];
+  stopSpeech();
   const type = game.type;
-  const lengths = { listen: game.order.length, colour: game.order.length, count: game.order.length, same: game.order.length, missing: game.order.length };
+  const lengths = { listen: game.order.length, colour: game.order.length, count: game.order.length, math: game.order.length, missing: game.order.length };
   if (game.round >= lengths[type] - 1) { renderComplete(type); return; }
   game.round += 1;
   if (type === 'listen') prepareListenRound();
   if (type === 'colour') { game.solved = false; renderColour(); announceColour(); }
   if (type === 'count') prepareCountRound();
-  if (type === 'same') { game.solved = false; renderSame(); screenTimer = window.setTimeout(() => speak('Find the same picture.'), 250); }
+  if (type === 'math') { game.solved = false; renderMath(); announceMath(); }
   if (type === 'missing') prepareMissingRound();
 };
 
@@ -442,7 +485,12 @@ const replayInstruction = () => {
   else if (game.type === 'colour') { const item = game.order[game.round]; speak(`Paint the ${item.id} ${item.colour}.`, `assets/audio/colour-mission/${item.audio}`); }
   else if (game.type === 'match') speak('Find two pictures that are the same.');
   else if (game.type === 'count') speak(numberWord(game.order[game.round].number));
-  else if (game.type === 'missing') speak(game.phase === 'look' ? 'Look carefully.' : 'What’s missing?');
+  else if (game.type === 'math') { const item = game.order[game.round]; speak(`${numberWord(item.a)} plus ${numberWord(item.b)} equals.`); }
+  else if (game.type === 'missing') {
+    if (game.phase === 'choose') speak('What’s missing?');
+    else if (game.highlight >= 0) sayWord(game.order[game.round][game.highlight]);
+    else speak('Look carefully.');
+  }
 };
 
 document.addEventListener('click', event => {
@@ -455,7 +503,7 @@ document.addEventListener('click', event => {
   const colour = event.target.closest('[data-colour]'); if (colour) return answerColour(colour);
   const card = event.target.closest('[data-card]'); if (card) return flipMatch(card);
   const number = event.target.closest('[data-number]'); if (number) return answerCount(number);
-  const same = event.target.closest('[data-same]'); if (same) return answerSame(same);
+  const math = event.target.closest('[data-math]'); if (math) return answerMath(math);
   const missing = event.target.closest('[data-missing]'); if (missing) return answerMissing(missing);
   const replayGame = event.target.closest('[data-replay-game]'); if (replayGame) return renderScreen(replayGame.dataset.replayGame);
 });
