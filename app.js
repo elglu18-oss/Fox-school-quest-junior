@@ -35,7 +35,7 @@ const SCREENS = {
   match: { title: 'Match Pictures', picture: 'book.png', homeArt: 'fox-book.png.png', icon: '🃏', colour: 'green' },
   count: { title: 'Count & Tap', picture: 'pen.png', homeArt: 'fox-math-board.png.png', icon: '⭐', colour: 'yellow' },
   math: { title: 'Math Mission', picture: 'object-star.png', homeArt: 'fox-math-board.png.png', icon: '➕', colour: 'purple', learningPicture: 'star' },
-  missing: { title: 'What’s Missing?', picture: 'sharpener.png', homeArt: 'match-card-fox.png.png', homeArtFolder: 'ui', icon: '❓', colour: 'sky' }
+  missing: { title: 'What’s Missing?', picture: 'sharpener.png', homeArt: 'fox-whats-missing.png.png', icon: '❓', colour: 'sky' }
 };
 
 const feedbackFiles = {
@@ -504,7 +504,7 @@ const renderMissing = () => {
   const set = game.order[game.round];
   const choosing = game.phase === 'choose';
   const slots = set.map((id, index) => choosing && id === game.missing
-    ? '<div class="memory-object empty"><span>?</span></div>'
+    ? `<div class="memory-object empty"><img src="${uiAsset('match-card-fox.png.png')}" alt="Hidden picture"></div>`
     : `<div class="memory-object ${game.highlight === index ? 'highlighted' : ''}"><img src="${learningAsset(id)}" alt="${id}"></div>`).join('');
   main.innerHTML = `<section class="game-screen">${header('What’s Missing?', '❓', game.round, game.order.length)}<div class="instruction-row">${listenButton(choosing ? 'LISTEN' : 'LOOK')}</div><div class="memory-stage ${game.phase}">${slots}</div>${choosing ? `<div class="missing-grid">${game.options.map(id => `<button class="missing-choice" data-missing="${id}" ${game.solved ? 'disabled' : ''}><img src="${learningAsset(id)}" alt="${id}"></button>`).join('')}</div>` : '<div class="look-message">Look carefully…</div>'}<div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Well done!</b></div>' + nextButton() : '<span class="gentle-hint">' + (choosing ? 'Which picture went away?' : 'Remember the pictures.') + '</span>'}</div></section>`;
 };
