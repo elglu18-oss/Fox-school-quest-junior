@@ -5,6 +5,7 @@ const musicButton = document.getElementById('musicToggle');
 
 const objectAsset = file => `assets%20images%20objects/${file}`;
 const foxAsset = file => `assets%20images%20fox/${file}`;
+const uiAsset = file => `assets%20images%20ui/${file}`;
 const learningAsset = file => `assets/images/objects/object-${file}.png`;
 const shuffle = items => {
   const result = [...items];
@@ -34,7 +35,7 @@ const SCREENS = {
   match: { title: 'Match Pictures', picture: 'book.png', homeArt: 'fox-book.png.png', icon: '🃏', colour: 'green' },
   count: { title: 'Count & Tap', picture: 'pen.png', homeArt: 'fox-math-board.png.png', icon: '⭐', colour: 'yellow' },
   math: { title: 'Math Mission', picture: 'object-star.png', homeArt: 'fox-math-board.png.png', icon: '➕', colour: 'purple', learningPicture: 'star' },
-  missing: { title: 'What’s Missing?', picture: 'sharpener.png', homeArt: 'fox-whats-missing.png.png', icon: '❓', colour: 'sky' }
+  missing: { title: 'What’s Missing?', picture: 'sharpener.png', homeArt: 'match-card-fox.png.png', homeArtFolder: 'ui', icon: '❓', colour: 'sky' }
 };
 
 const feedbackFiles = {
@@ -334,7 +335,7 @@ const renderHome = () => {
       </div>
       <div class="mission-grid">
         ${Object.entries(SCREENS).map(([key, item]) => `
-          <button class="mission-card theme-${item.colour}" data-screen="${key}" aria-label="Play ${item.title}"><span class="mission-picture"><img src="${foxAsset(item.homeArt)}" alt=""></span><span class="mission-copy"><span class="mission-title">${item.title}</span><span class="play-button">PLAY <span aria-hidden="true">▶</span></span></span></button>`).join('')}
+          <button class="mission-card theme-${item.colour} ${key === 'missing' ? 'mission-card-missing' : ''}" data-screen="${key}" aria-label="Play ${item.title}"><span class="mission-picture"><img src="${item.homeArtFolder === 'ui' ? uiAsset(item.homeArt) : foxAsset(item.homeArt)}" alt=""></span><span class="mission-copy"><span class="mission-title">${item.title}</span><span class="play-button">PLAY <span aria-hidden="true">▶</span></span></span></button>`).join('')}
       </div>
       <div class="home-footer-card"><button class="backpack-wide" data-screen="backpack"><span aria-hidden="true">🎒</span><span><small>YOUR REWARDS</small><b>My Backpack</b></span><strong>OPEN</strong></button><label class="challenge-switch"><input id="challengeToggle" type="checkbox" ${challengeEnabled ? 'checked' : ''}><span aria-hidden="true"></span><b>Time Challenge</b><small>Optional</small></label></div>
     </section>`;
