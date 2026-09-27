@@ -7,6 +7,8 @@ const objectAsset = file => `assets%20images%20objects/${file}`;
 const foxAsset = file => `assets%20images%20fox/${file}`;
 const uiAsset = file => `assets%20images%20ui/${file}`;
 const learningAsset = file => `assets/images/objects/object-${file}.png`;
+const encodePathPart = value => encodeURIComponent(value).replace(/'/g, '%27');
+const audioAsset = (folder, file) => `assets%20audio%20${encodePathPart(folder)}/${encodePathPart(file)}`;
 const shuffle = items => {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i -= 1) {
@@ -17,16 +19,16 @@ const shuffle = items => {
 };
 
 const WORDS = [
-  { id: 'pen', image: 'pen.png', audio: 'assets/audio/words/pen.mp3' },
-  { id: 'pencil', image: 'pencil.png', audio: 'assets/audio/words/pencil.mp3' },
-  { id: 'book', image: 'book.png', audio: 'assets/audio/words/book.mp3' },
-  { id: 'bag', image: 'bag.png', audio: 'assets/audio/words/bag.mp3' },
-  { id: 'ruler', image: 'ruler.png', audio: 'assets/audio/words/ruler.mp3' },
-  { id: 'rubber', image: 'rubber.png', audio: 'assets/audio/words/rubber.mp3' },
-  { id: 'notebook', image: 'notebook.png', audio: 'assets/audio/words/notebook.mp3' },
-  { id: 'crayon', image: 'crayon.png', audio: null },
+  { id: 'pen', image: 'pen.png', audio: audioAsset('words', 'pen.mp3.mp3') },
+  { id: 'pencil', image: 'pencil.png', audio: audioAsset('words', 'pencil.mp3.mp3') },
+  { id: 'book', image: 'book.png', audio: audioAsset('words', 'book.mp3.mp3') },
+  { id: 'bag', image: 'bag.png', audio: audioAsset('words', 'bag.mp3.mp3') },
+  { id: 'ruler', image: 'ruler.png', audio: audioAsset('words', 'ruler.mp3.mp3') },
+  { id: 'rubber', image: 'rubber.png', audio: audioAsset('words', 'rubber.mp3.mp3') },
+  { id: 'notebook', image: 'notebook.png', audio: audioAsset('words', 'notebook.mp3.mp3') },
+  { id: 'crayon', image: 'crayon.png', audio: audioAsset('words', 'crayon.mp3.mp3') },
   { id: 'scissors', image: 'scissors.png', audio: null },
-  { id: 'sharpener', image: 'sharpener.png', audio: 'assets/audio/words/sharpener.mp3' }
+  { id: 'sharpener', image: 'sharpener.png', audio: audioAsset('words', 'sharpener.mp3.mp3') }
 ];
 
 const SCREENS = {
@@ -39,24 +41,31 @@ const SCREENS = {
 };
 
 const feedbackFiles = {
-  great: 'assets/audio/feedback/great-job.mp3',
-  well: 'assets/audio/feedback/well-done.mp3',
-  didIt: 'assets/audio/feedback/you-did-it.mp3',
-  retry: 'assets/audio/feedback/try-again.mp3',
-  complete: 'assets/audio/feedback/mission-complete.mp3'
+  great: audioAsset('feedback', 'great-job.mp3.mp3'),
+  well: audioAsset('feedback', 'well-done.mp3.mp3'),
+  didIt: audioAsset('feedback', 'you-did-it.mp3.mp3'),
+  retry: audioAsset('feedback', 'try-again.mp3.mp3'),
+  complete: audioAsset('feedback', 'mission-complete.mp3.mp3')
 };
 
+const feedbackLabels = { great: 'Great job!', well: 'Well done!', didIt: 'You did it!', retry: 'Try again.', complete: 'Mission complete!' };
+const numberFiles = Object.fromEntries(['one','two','three','four','five','six','seven','eight','nine','ten']
+  .map((word, index) => [index + 1, audioAsset('numbers', `${word}.mp3.mp3`)]));
+const tapFindFiles = Object.fromEntries(['bag','book','crayon','pen','pencil','rubber','ruler','scissors','sharpener']
+  .map(id => [id, audioAsset('tap-find', `find-the-${id}.mp3.mp3`)]));
+const whatsMissingFile = audioAsset("what's missing", "what's- missing.mp3");
+
 const colourRounds = [
-  { id: 'pencil', colour: 'red', audio: 'paint-the-pencil-red.mp3' },
-  { id: 'pen', colour: 'blue', audio: 'paint-the-pen-blue.mp3' },
-  { id: 'book', colour: 'green', audio: 'paint-the-book-green.mp3' },
-  { id: 'ruler', colour: 'yellow', audio: 'paint-the-ruler-yellow.mp3' },
-  { id: 'rubber', colour: 'red', audio: 'paint-the-rubber-red.mp3' },
-  { id: 'crayon', colour: 'blue', audio: 'paint-the-crayon-blue.mp3' },
-  { id: 'bag', colour: 'green', audio: 'paint-the-bag-green.mp3' },
-  { id: 'notebook', colour: 'yellow', audio: 'paint-the-notebook-yellow.mp3' },
-  { id: 'scissors', colour: 'red', audio: 'paint-the-scissors-red.mp3' },
-  { id: 'sharpener', colour: 'blue', audio: 'paint-the-sharpener-blue.mp3' }
+  { id: 'pencil', colour: 'red', audio: 'Paint-the-pencil-red.mp3.mp3' },
+  { id: 'pen', colour: 'blue', audio: 'paint-the-pen-blue.mp3.mp3' },
+  { id: 'book', colour: 'green', audio: 'paint-the-book-green.mp3.mp3' },
+  { id: 'ruler', colour: 'yellow', audio: 'paint-the-ruler-yellow.mp3.mp3' },
+  { id: 'rubber', colour: 'red', audio: 'paint-the-rubber-red.mp3.mp3' },
+  { id: 'crayon', colour: 'blue', audio: 'paint-the-crayon-blue.mp3.mp3' },
+  { id: 'bag', colour: 'green', audio: 'paint-the-bag-green.mp3.mp3' },
+  { id: 'notebook', colour: 'yellow', audio: 'paint-the-notebook-yellow.mp3.mp3' },
+  { id: 'scissors', colour: 'red', audio: 'paint-the-scissors-red.mp3.mp3' },
+  { id: 'sharpener', colour: 'blue', audio: 'paint-the-sharpener-blue.mp3.mp3' }
 ];
 
 const matchSets = [
@@ -66,10 +75,10 @@ const matchSets = [
 ];
 
 const learningObjects = [
-  { id: 'pencil', audio: 'assets/audio/words/pencil.mp3' },
+  { id: 'pencil', audio: audioAsset('words', 'pencil.mp3.mp3') },
   { id: 'star', audio: null },
   { id: 'fox', audio: null },
-  { id: 'book', audio: 'assets/audio/words/book.mp3' },
+  { id: 'book', audio: audioAsset('words', 'book.mp3.mp3') },
   { id: 'apple', audio: null }
 ];
 
@@ -257,14 +266,23 @@ const speakAsync = (text, file = null) => {
 };
 
 const playFeedback = kind => {
-  const labels = { great: 'Great job!', well: 'Well done!', didIt: 'You did it!', retry: 'Try again.', complete: 'Mission complete!' };
-  speak(labels[kind], feedbackFiles[kind]);
+  speak(feedbackLabels[kind], feedbackFiles[kind]);
 };
+
+const playFeedbackAsync = kind => speakAsync(feedbackLabels[kind], feedbackFiles[kind]);
 
 const sayWord = id => {
   const word = learningObjects.find(item => item.id === id) || WORDS.find(item => item.id === id);
   speak(id, word?.audio || null);
 };
+
+const sayWordAsync = id => {
+  const word = learningObjects.find(item => item.id === id) || WORDS.find(item => item.id === id);
+  return speakAsync(id, word?.audio || null);
+};
+
+const sayFindCommand = id => speak(`Find the ${id}.`, tapFindFiles[id] || null);
+const numberAudio = number => numberFiles[number] || null;
 
 const showToast = message => {
   toast.textContent = message;
@@ -352,7 +370,7 @@ const prepareListenRound = () => {
   game.options = shuffle([target, ...distractors]);
   game.solved = false;
   renderListen();
-  screenTimer = window.setTimeout(() => sayWord(target), 350);
+  screenTimer = window.setTimeout(() => sayFindCommand(target), 350);
 };
 
 const renderListen = () => {
@@ -367,7 +385,7 @@ const beginColour = () => {
 
 const announceColour = () => {
   const item = game.order[game.round];
-  screenTimer = window.setTimeout(() => speak(`Paint the ${item.id} ${item.colour}.`, `assets/audio/colour-mission/${item.audio}`), 350);
+  screenTimer = window.setTimeout(() => speak(`Paint the ${item.id} ${item.colour}.`, audioAsset('colour-mission', item.audio)), 350);
 };
 
 const renderColour = () => {
@@ -403,7 +421,7 @@ const prepareCountRound = () => {
   const options = new Set([target]);
   while (options.size < 3) options.add(Math.max(1, Math.min(10, target + Math.floor(Math.random() * 7) - 3)));
   game.options = shuffle([...options]); game.solved = false;
-  renderCount(); screenTimer = window.setTimeout(() => speak(numberWord(target)), 350);
+  renderCount(); screenTimer = window.setTimeout(() => speak(numberWord(target), numberAudio(target)), 350);
 };
 
 const numberWord = number => ['zero','one','two','three','four','five','six','seven','eight','nine','ten'][number];
@@ -482,6 +500,37 @@ const nextMissingAnswerPosition = () => {
   return position;
 };
 
+const waitForSequence = delay => new Promise(resolve => {
+  const timer = window.setTimeout(resolve, delay);
+  sequenceTimers.push(timer);
+});
+
+const runMissingSequence = async activeGame => {
+  const isActive = () => game === activeGame && currentScreen === 'missing';
+  await waitForSequence(600);
+  for (let index = 0; index < activeGame.order[activeGame.round].length; index += 1) {
+    if (!isActive()) return;
+    const id = activeGame.order[activeGame.round][index];
+    activeGame.highlight = index;
+    renderMissing();
+    await sayWordAsync(id);
+    if (!isActive()) return;
+    await waitForSequence(350);
+  }
+  if (!isActive()) return;
+  activeGame.highlight = -1;
+  activeGame.phase = 'pause';
+  renderMissing();
+  await waitForSequence(1200);
+  if (!isActive()) return;
+  activeGame.phase = 'question';
+  renderMissing();
+  await speakAsync('What’s missing?', whatsMissingFile);
+  if (!isActive()) return;
+  activeGame.phase = 'choose';
+  renderMissing();
+};
+
 const prepareMissingRound = () => {
   const set = game.order[game.round];
   sequenceTimers.forEach(timer => window.clearTimeout(timer)); sequenceTimers = [];
@@ -493,17 +542,14 @@ const prepareMissingRound = () => {
   [choices[currentPosition], choices[answerPosition]] = [choices[answerPosition], choices[currentPosition]];
   game.options = choices;
   renderMissing();
-  set.forEach((id, index) => scheduleSequence(() => {
-    game.highlight = index; renderMissing(); sayWord(id);
-  }, 600 + index * 2000));
-  scheduleSequence(() => { game.highlight = -1; game.phase = 'pause'; renderMissing(); }, 6600);
-  scheduleSequence(() => { game.phase = 'choose'; renderMissing(); speak('What’s missing?'); }, 8200);
+  runMissingSequence(game);
 };
 
 const renderMissing = () => {
   const set = game.order[game.round];
   const choosing = game.phase === 'choose';
-  const slots = set.map((id, index) => choosing && id === game.missing
+  const hidden = game.phase === 'question' || choosing;
+  const slots = set.map((id, index) => hidden && id === game.missing
     ? `<div class="memory-object empty"><img src="${uiAsset('match-card-fox.png.png')}" alt="Hidden picture"></div>`
     : `<div class="memory-object ${game.highlight === index ? 'highlighted' : ''}"><img src="${learningAsset(id)}" alt="${id}"></div>`).join('');
   main.innerHTML = `<section class="game-screen">${header('What’s Missing?', '❓', game.round, game.order.length)}<div class="instruction-row">${listenButton(choosing ? 'LISTEN' : 'LOOK')}</div><div class="memory-stage ${game.phase}">${slots}</div>${choosing ? `<div class="missing-grid">${game.options.map(id => `<button class="missing-choice" data-missing="${id}" ${game.solved ? 'disabled' : ''}><img src="${learningAsset(id)}" alt="${id}"></button>`).join('')}</div>` : '<div class="look-message">Look carefully…</div>'}<div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Well done!</b></div>' + nextButton() : '<span class="gentle-hint">' + (choosing ? 'Which picture went away?' : 'Remember the pictures.') + '</span>'}</div></section>`;
@@ -544,12 +590,16 @@ const wrongAnswer = button => {
   playFeedback('retry');
 };
 
-const answerListen = button => {
+const answerListen = async button => {
   if (game.solved) return;
   const target = game.order[game.round];
   if (button.dataset.answer !== target) return wrongAnswer(button);
-  game.solved = true; renderListen(); sayWord(target);
-  scheduleSequence(() => playFeedback(['great','well','didIt'][game.round % 3]), 900);
+  const activeGame = game;
+  const activeRound = game.round;
+  game.solved = true; renderListen();
+  await sayWordAsync(target);
+  if (game !== activeGame || currentScreen !== 'listen' || game.round !== activeRound) return;
+  await playFeedbackAsync(['great','well','didIt'][game.round % 3]);
 };
 
 const answerColour = button => {
@@ -558,11 +608,16 @@ const answerColour = button => {
   game.solved = true; renderColour(); playFeedback(['well','great','didIt'][game.round % 3]);
 };
 
-const answerCount = button => {
+const answerCount = async button => {
   if (game.solved) return;
   const target = game.order[game.round].number;
   if (Number(button.dataset.number) !== target) return wrongAnswer(button);
-  game.solved = true; renderCount(); speak(`${numberWord(target)}. Great job!`);
+  const activeGame = game;
+  const activeRound = game.round;
+  game.solved = true; renderCount();
+  await speakAsync(`${numberWord(target)}.`, numberAudio(target));
+  if (game !== activeGame || currentScreen !== 'count' || game.round !== activeRound) return;
+  await playFeedbackAsync('great');
 };
 
 const answerMath = async button => {
@@ -573,7 +628,7 @@ const answerMath = async button => {
   const activeGame = game;
   const activeRound = game.round;
   game.solved = true; game.feedbackReady = false; renderMath();
-  await speakAsync(`${spokenNumber(answer)}.`);
+  await speakAsync(`${spokenNumber(answer)}.`, numberAudio(answer));
   if (game !== activeGame || currentScreen !== 'math' || game.round !== activeRound) return;
   await new Promise(resolve => window.setTimeout(resolve, 180));
   await speakAsync('Great job!', feedbackFiles.great);
@@ -581,11 +636,15 @@ const answerMath = async button => {
   game.feedbackReady = true; renderMath();
 };
 
-const answerMissing = button => {
+const answerMissing = async button => {
   if (game.solved || game.phase !== 'choose') return;
   if (button.dataset.missing !== game.missing) return wrongAnswer(button);
-  game.solved = true; game.phase = 'restored'; renderMissing(); sayWord(game.missing);
-  scheduleSequence(() => playFeedback('well'), 1000);
+  const activeGame = game;
+  const activeRound = game.round;
+  game.solved = true; game.phase = 'restored'; renderMissing();
+  await sayWordAsync(game.missing);
+  if (game !== activeGame || currentScreen !== 'missing' || game.round !== activeRound) return;
+  await playFeedbackAsync('well');
 };
 
 const flipMatch = button => {
@@ -626,13 +685,13 @@ const nextRound = () => {
 
 const replayInstruction = () => {
   if (!game) return;
-  if (game.type === 'listen') sayWord(game.order[game.round]);
-  else if (game.type === 'colour') { const item = game.order[game.round]; speak(`Paint the ${item.id} ${item.colour}.`, `assets/audio/colour-mission/${item.audio}`); }
+  if (game.type === 'listen') sayFindCommand(game.order[game.round]);
+  else if (game.type === 'colour') { const item = game.order[game.round]; speak(`Paint the ${item.id} ${item.colour}.`, audioAsset('colour-mission', item.audio)); }
   else if (game.type === 'match') speak('Find two pictures that are the same.');
-  else if (game.type === 'count') speak(numberWord(game.order[game.round].number));
+  else if (game.type === 'count') { const number = game.order[game.round].number; speak(numberWord(number), numberAudio(number)); }
   else if (game.type === 'math') { const item = game.order[game.round]; speak(`${numberWord(item.a)} plus ${numberWord(item.b)} equals.`); }
   else if (game.type === 'missing') {
-    if (game.phase === 'choose') speak('What’s missing?');
+    if (game.phase === 'question' || game.phase === 'choose') speak('What’s missing?', whatsMissingFile);
     else if (game.highlight >= 0) sayWord(game.order[game.round][game.highlight]);
     else speak('Look carefully.');
   }
