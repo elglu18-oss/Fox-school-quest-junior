@@ -103,20 +103,18 @@ const countRounds = [
 
 const mathRoundPools = {
   easy: [
-    { a: 1, b: 1, object: 'star' }, { a: 1, b: 2, object: 'book' },
-    { a: 2, b: 2, object: 'pencil' }, { a: 2, b: 3, object: 'apple' },
-    { a: 4, b: 1, object: 'fox' }
+    { a: 1, b: 1, object: 'star', audio: 'one-plus-one-is.mp3.mp3' },
+    { a: 2, b: 2, object: 'pencil', audio: 'two-plus-two-is.mp3.mp3' },
+    { a: 2, b: 3, object: 'apple', audio: 'two-plus-three-is.mp3.mp3' }
   ],
   medium: [
-    { a: 2, b: 3, object: 'book' }, { a: 3, b: 3, object: 'star' },
-    { a: 2, b: 5, object: 'apple' }, { a: 4, b: 3, object: 'pencil' },
-    { a: 5, b: 3, object: 'fox' }, { a: 4, b: 4, object: 'book' }
+    { a: 2, b: 5, object: 'apple', audio: 'two-plus-five-is.mp3.mp3' },
+    { a: 4, b: 3, object: 'pencil', audio: 'four-plus-three-is.mp3.mp3' },
+    { a: 5, b: 3, object: 'fox', audio: 'five-plus-three-is.mp3.mp3' }
   ],
   hard: [
-    { a: 4, b: 3, object: 'pencil' }, { a: 5, b: 3, object: 'fox' },
-    { a: 3, b: 6, object: 'star' }, { a: 5, b: 4, object: 'apple' },
-    { a: 7, b: 2, object: 'book' }, { a: 8, b: 1, object: 'pencil' },
-    { a: 6, b: 4, object: 'fox' }, { a: 5, b: 5, object: 'apple' }
+    { a: 3, b: 6, object: 'star', audio: 'three-plus-six-is.mp3.mp3' },
+    { a: 5, b: 5, object: 'apple', audio: 'five-plus-five-is.mp3.mp3' }
   ]
 };
 
@@ -464,10 +462,7 @@ const renderCount = () => {
 };
 
 const beginMath = () => {
-  const easy = shuffle(mathRoundPools.easy).slice(0, 2);
-  const medium = shuffle(mathRoundPools.medium).slice(0, 3);
-  const hard = shuffle(mathRoundPools.hard).slice(0, 3);
-  const order = [easy[0], easy[1], medium[0], medium[1], medium[2], hard[0], hard[1], hard[2]];
+  const order = [...shuffle(mathRoundPools.easy), ...shuffle(mathRoundPools.medium), ...shuffle(mathRoundPools.hard)];
   game = { type: 'math', order, round: 0, solved: false, feedbackReady: false, answerPositions: [], lastAnswerPosition: null };
   prepareMathRound(); startGameClock();
 };
@@ -502,16 +497,25 @@ const prepareMathRound = () => {
   announceMath();
 };
 
+const playMathEquation = item => speakAsync(
+  `${numberWord(item.a)} plus ${numberWord(item.b)} equals.`,
+  item.audio ? audioAsset('math-mission', item.audio) : null
+);
+
 const announceMath = () => {
-  const item = game.order[game.round];
-  screenTimer = window.setTimeout(() => speak(`${numberWord(item.a)} plus ${numberWord(item.b)} equals.`), 350);
+  const activeGame = game;
+  const activeRound = game.round;
+  const item = game.order[activeRound];
+  screenTimer = window.setTimeout(() => {
+    if (game === activeGame && currentScreen === 'math' && game.round === activeRound) playMathEquation(item);
+  }, 350);
 };
 
 const renderMath = () => {
   const item = game.order[game.round];
   const answer = item.a + item.b;
   const visualGroup = amount => `<span class="${amount > 5 ? 'many' : ''}">${Array.from({ length: amount }, () => `<img src="${learningAsset(item.object)}" alt="">`).join('')}</span>`;
-  main.innerHTML = `<section class="game-screen math-screen">${header('Math Mission', '➕', game.round, game.order.length)}<div class="instruction-row">${listenButton('LISTEN')}</div><div class="math-panel"><div class="math-visual" aria-hidden="true">${visualGroup(item.a)}<b>+</b>${visualGroup(item.b)}</div><div class="math-equation" aria-label="${item.a} plus ${item.b}">${item.a} + ${item.b} = ?</div><div class="math-answers">${item.answers.map(value => `<button class="math-answer ${game.solved && value === answer ? 'correct' : ''}" data-math="${value}" ${game.solved ? 'disabled' : ''}>${value}</button>`).join('')}</div></div><div class="game-actions">${game.feedbackReady ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Great job!</b></div>' + nextButton() : '<span class="gentle-hint">' + (game.solved ? '' : 'Tap the answer.') + '</span>'}</div></section>`;
+  main.innerHTML = `<section class="game-screen math-screen">${header('Math Mission', '➕', game.round, game.order.length)}<div class="instruction-row">${listenButton('HEAR AGAIN')}</div><div class="math-panel"><div class="math-visual" aria-hidden="true">${visualGroup(item.a)}<b>+</b>${visualGroup(item.b)}</div><div class="math-equation" aria-label="${item.a} plus ${item.b}">${item.a} + ${item.b} = ?</div><div class="math-answers">${item.answers.map(value => `<button class="math-answer ${game.solved && value === answer ? 'correct' : ''}" data-math="${value}" ${game.solved ? 'disabled' : ''}>${value}</button>`).join('')}</div></div><div class="game-actions">${game.feedbackReady ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Great job!</b></div>' + nextButton() : '<span class="gentle-hint">' + (game.solved ? '' : 'Tap the answer.') + '</span>'}</div></section>`;
 };
 
 const beginMissing = () => {
@@ -817,7 +821,7 @@ const replayInstruction = () => {
   else if (game.type === 'colour') { const item = game.order[game.round]; speak(`Paint the ${item.id} ${item.colour}.`, audioAsset('colour-mission', item.audio)); }
   else if (game.type === 'match') playMatchInstruction();
   else if (game.type === 'count') { const number = game.order[game.round].number; speak(numberWord(number), numberAudio(number)); }
-  else if (game.type === 'math') { const item = game.order[game.round]; speak(`${numberWord(item.a)} plus ${numberWord(item.b)} equals.`); }
+  else if (game.type === 'math') playMathEquation(game.order[game.round]);
   else if (game.type === 'numberHunt') { const number = game.order[game.round]; speak(numberWord(number), numberAudio(number)); }
   else if (game.type === 'colourHunt') speak(game.order[game.round]);
   else if (game.type === 'missing') {
