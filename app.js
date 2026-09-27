@@ -27,7 +27,7 @@ const WORDS = [
   { id: 'rubber', image: 'rubber.png', audio: audioAsset('words', 'rubber.mp3.mp3') },
   { id: 'notebook', image: 'notebook.png', audio: audioAsset('words', 'notebook.mp3.mp3') },
   { id: 'crayon', image: 'crayon.png', audio: audioAsset('words', 'crayon.mp3.mp3') },
-  { id: 'scissors', image: 'scissors.png', audio: null },
+  { id: 'scissors', image: 'scissors.png', audio: audioAsset('words', 'scissors.mp3.mp3') },
   { id: 'sharpener', image: 'sharpener.png', audio: audioAsset('words', 'sharpener.mp3.mp3') }
 ];
 
@@ -51,9 +51,11 @@ const feedbackFiles = {
 const feedbackLabels = { great: 'Great job!', well: 'Well done!', didIt: 'You did it!', retry: 'Try again.', complete: 'Mission complete!' };
 const numberFiles = Object.fromEntries(['one','two','three','four','five','six','seven','eight','nine','ten']
   .map((word, index) => [index + 1, audioAsset('numbers', `${word}.mp3.mp3`)]));
-const tapFindFiles = Object.fromEntries(['bag','book','crayon','pen','pencil','rubber','ruler','scissors','sharpener']
+const tapFindFiles = Object.fromEntries(['bag','book','crayon','notebook','pen','pencil','rubber','ruler','scissors','sharpener']
   .map(id => [id, audioAsset('tap-find', `find-the-${id}.mp3.mp3`)]));
 const whatsMissingFile = audioAsset("what's missing", "what's- missing.mp3");
+const lookCarefullyFile = audioAsset('match-pictures', 'look-carefully.mp3');
+const findMatchingPicturesFile = audioAsset('match-pictures', 'find-two-pictures-that-are-the-same.mp3');
 
 const colourRounds = [
   { id: 'pencil', colour: 'red', audio: 'Paint-the-pencil-red.mp3.mp3' },
@@ -76,10 +78,10 @@ const matchSets = [
 
 const learningObjects = [
   { id: 'pencil', audio: audioAsset('words', 'pencil.mp3.mp3') },
-  { id: 'star', audio: null },
-  { id: 'fox', audio: null },
+  { id: 'star', audio: audioAsset('words', 'star.mp3.mp3') },
+  { id: 'fox', audio: audioAsset('words', 'fox.mp3.mp3') },
   { id: 'book', audio: audioAsset('words', 'book.mp3.mp3') },
-  { id: 'apple', audio: null }
+  { id: 'apple', audio: audioAsset('words', 'apple.mp3.mp3') }
 ];
 
 const countRounds = [
@@ -135,6 +137,7 @@ let gameStartedAt = 0;
 let spokenAudio = null;
 let speechToken = 0;
 let pendingSpeechResolve = null;
+let matchInstructionRun = 0;
 
 const MUSIC_VOLUME = .22;
 const DUCKED_MUSIC_VOLUME = .07;
@@ -284,6 +287,13 @@ const sayWordAsync = id => {
 const sayFindCommand = id => speak(`Find the ${id}.`, tapFindFiles[id] || null);
 const numberAudio = number => numberFiles[number] || null;
 
+const playMatchInstruction = async () => {
+  const run = ++matchInstructionRun;
+  await speakAsync('Look carefully.', lookCarefullyFile);
+  if (run !== matchInstructionRun || currentScreen !== 'match') return;
+  await speakAsync('Find two pictures that are the same.', findMatchingPicturesFile);
+};
+
 const showToast = message => {
   toast.textContent = message;
   toast.classList.add('show');
@@ -404,7 +414,10 @@ const prepareMatchRound = () => {
   game.cards = shuffle(ids.flatMap((id, index) => [{ key: `${id}-a-${index}`, id, open: false, matched: false }, { key: `${id}-b-${index}`, id, open: false, matched: false }]));
   game.first = null; game.locked = false; game.matches = 0;
   renderMatch();
-  screenTimer = window.setTimeout(() => speak('Find two pictures that are the same.'), 350);
+  const activeGame = game;
+  screenTimer = window.setTimeout(() => {
+    if (game === activeGame && currentScreen === 'match') playMatchInstruction();
+  }, 350);
 };
 
 const renderMatch = () => {
@@ -687,13 +700,13 @@ const replayInstruction = () => {
   if (!game) return;
   if (game.type === 'listen') sayFindCommand(game.order[game.round]);
   else if (game.type === 'colour') { const item = game.order[game.round]; speak(`Paint the ${item.id} ${item.colour}.`, audioAsset('colour-mission', item.audio)); }
-  else if (game.type === 'match') speak('Find two pictures that are the same.');
+  else if (game.type === 'match') playMatchInstruction();
   else if (game.type === 'count') { const number = game.order[game.round].number; speak(numberWord(number), numberAudio(number)); }
   else if (game.type === 'math') { const item = game.order[game.round]; speak(`${numberWord(item.a)} plus ${numberWord(item.b)} equals.`); }
   else if (game.type === 'missing') {
     if (game.phase === 'question' || game.phase === 'choose') speak('What’s missing?', whatsMissingFile);
     else if (game.highlight >= 0) sayWord(game.order[game.round][game.highlight]);
-    else speak('Look carefully.');
+    else speak('Look carefully.', lookCarefullyFile);
   }
 };
 
