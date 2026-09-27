@@ -5,6 +5,7 @@ const musicButton = document.getElementById('musicToggle');
 
 const objectAsset = file => `assets%20images%20objects/${file}`;
 const foxAsset = file => `assets%20images%20fox/${file}`;
+const juniorFoxAsset = file => `assets/images/fox/${file}`;
 const uiAsset = file => `assets%20images%20ui/${file}`;
 const learningAsset = file => `assets/images/objects/object-${file}.png`;
 const encodePathPart = value => encodeURIComponent(value).replace(/'/g, '%27');
@@ -37,7 +38,9 @@ const SCREENS = {
   match: { title: 'Match Pictures', picture: 'book.png', homeArt: 'fox-book.png.png', icon: '🃏', colour: 'green' },
   count: { title: 'Count & Tap', picture: 'pen.png', homeArt: 'fox-math-board.png.png', icon: '⭐', colour: 'yellow' },
   math: { title: 'Math Mission', picture: 'object-star.png', homeArt: 'fox-math-board.png.png', icon: '➕', colour: 'purple', learningPicture: 'star' },
-  missing: { title: 'What’s Missing?', picture: 'sharpener.png', homeArt: 'fox-whats-missing.png.png', icon: '❓', colour: 'sky' }
+  missing: { title: 'What’s Missing?', picture: 'sharpener.png', homeArt: 'fox-whats-missing.png.png', icon: '❓', colour: 'sky' },
+  numberHunt: { title: 'Number Hunt', homeArtPath: juniorFoxAsset('fox-number-hunt.png'), rewardArtPath: juniorFoxAsset('fox-number-hunt.png'), icon: '🔢', colour: 'blue' },
+  colourHunt: { title: 'Colour Hunt', homeArtPath: juniorFoxAsset('fox-colour-hunt.png'), rewardArtPath: juniorFoxAsset('fox-colour-hunt.png'), icon: '🎨', colour: 'coral' }
 };
 
 const feedbackFiles = {
@@ -51,6 +54,13 @@ const feedbackFiles = {
 const feedbackLabels = { great: 'Great job!', well: 'Well done!', didIt: 'You did it!', retry: 'Try again.', complete: 'Mission complete!' };
 const numberFiles = Object.fromEntries(['one','two','three','four','five','six','seven','eight','nine','ten']
   .map((word, index) => [index + 1, audioAsset('numbers', `${word}.mp3.mp3`)]));
+const huntColours = [
+  { id: 'yellow', value: '#f4cf42' }, { id: 'blue', value: '#398bd2' },
+  { id: 'brown', value: '#8a4f2d' }, { id: 'black', value: '#20252b' },
+  { id: 'white', value: '#ffffff' }, { id: 'green', value: '#4eb774' },
+  { id: 'purple', value: '#874dcc' }, { id: 'red', value: '#ed5a54' },
+  { id: 'orange', value: '#f28b32' }, { id: 'grey', value: '#8d969d' }
+];
 const tapFindFiles = Object.fromEntries(['bag','book','crayon','notebook','pen','pencil','rubber','ruler','scissors','sharpener']
   .map(id => [id, audioAsset('tap-find', `find-the-${id}.mp3.mp3`)]));
 const whatsMissingFile = audioAsset("what's missing", "what's- missing.mp3");
@@ -349,8 +359,17 @@ const header = (title, icon, current, total) => `
   </div>
   <div class="progress-dots" aria-label="Mission progress">${Array.from({ length: total }, (_, i) => `<i class="${i < current ? 'done' : i === current ? 'now' : ''}"></i>`).join('')}</div>`;
 
+const huntHeader = (title, icon, found, total) => `
+  <div class="game-topline hunt-topline">
+    <button class="round-home" data-screen="home" aria-label="Home">⌂</button>
+    <div class="game-title"><span aria-hidden="true">${icon}</span><h1>${title}</h1></div>
+    <div class="hunt-progress" aria-label="${found} of ${total} found"><small>FOUND</small><b>${found} / ${total}</b></div>
+  </div>`;
+
 const listenButton = text => `<button class="listen-button" data-action="replay" aria-label="Play the instruction again"><span aria-hidden="true">🔊</span><b>${text}</b></button>`;
 const nextButton = () => `<button class="next-button" data-action="next">NEXT <span aria-hidden="true">▶</span></button>`;
+const homeArtSource = item => item.homeArtPath || (item.homeArtFolder === 'ui' ? uiAsset(item.homeArt) : foxAsset(item.homeArt));
+const rewardArtSource = item => item.rewardArtPath || (item.learningPicture ? learningAsset(item.learningPicture) : objectAsset(item.picture));
 
 const renderHome = () => {
   main.innerHTML = `
@@ -361,7 +380,7 @@ const renderHome = () => {
       </div>
       <div class="mission-grid">
         ${Object.entries(SCREENS).map(([key, item]) => `
-          <button class="mission-card theme-${item.colour} ${key === 'missing' ? 'mission-card-missing' : ''}" data-screen="${key}" aria-label="Play ${item.title}"><span class="mission-picture"><img src="${item.homeArtFolder === 'ui' ? uiAsset(item.homeArt) : foxAsset(item.homeArt)}" alt=""></span><span class="mission-copy"><span class="mission-title">${item.title}</span><span class="play-button">PLAY <span aria-hidden="true">▶</span></span></span></button>`).join('')}
+          <button class="mission-card theme-${item.colour} ${key === 'missing' ? 'mission-card-missing' : ''} ${item.homeArtPath ? 'mission-card-hunt' : ''}" data-screen="${key}" aria-label="Play ${item.title}"><span class="mission-picture"><img src="${homeArtSource(item)}" alt=""></span><span class="mission-copy"><span class="mission-title">${item.title}</span><span class="play-button">PLAY <span aria-hidden="true">▶</span></span></span></button>`).join('')}
       </div>
       <div class="home-footer-card"><button class="backpack-wide" data-screen="backpack"><span aria-hidden="true">🎒</span><span><small>YOUR REWARDS</small><b>My Backpack</b></span><strong>OPEN</strong></button><label class="challenge-switch"><input id="challengeToggle" type="checkbox" ${challengeEnabled ? 'checked' : ''}><span aria-hidden="true"></span><b>Time Challenge</b><small>Optional</small></label></div>
     </section>`;
@@ -568,6 +587,100 @@ const renderMissing = () => {
   main.innerHTML = `<section class="game-screen">${header('What’s Missing?', '❓', game.round, game.order.length)}<div class="instruction-row">${listenButton(choosing ? 'LISTEN' : 'LOOK')}</div><div class="memory-stage ${game.phase}">${slots}</div>${choosing ? `<div class="missing-grid">${game.options.map(id => `<button class="missing-choice" data-missing="${id}" ${game.solved ? 'disabled' : ''}><img src="${learningAsset(id)}" alt="${id}"></button>`).join('')}</div>` : '<div class="look-message">Look carefully…</div>'}<div class="game-actions">${game.solved ? '<div class="success-message"><img src="' + foxAsset('Fox-happy.jpg') + '" alt="Happy Foxy"><b>Well done!</b></div>' + nextButton() : '<span class="gentle-hint">' + (choosing ? 'Which picture went away?' : 'Remember the pictures.') + '</span>'}</div></section>`;
 };
 
+const beginNumberHunt = () => {
+  game = { type: 'numberHunt', order: shuffle(Array.from({ length: 10 }, (_, index) => index + 1)), round: 0, completed: [], locked: true, feedbackTarget: null };
+  renderNumberHunt();
+  startGameClock();
+  screenTimer = window.setTimeout(() => announceNumberHunt(game), 350);
+};
+
+const renderNumberHunt = () => {
+  const completed = new Set(game.completed);
+  main.innerHTML = `<section class="game-screen hunt-screen">${huntHeader('Number Hunt', '🔢', completed.size, 10)}<div class="instruction-row">${listenButton('HEAR AGAIN')}</div><div class="hunt-board number-hunt-board">${Array.from({ length: 10 }, (_, index) => index + 1).map(number => `<button class="hunt-tile number-hunt-tile ${completed.has(number) ? 'completed' : ''} ${game.feedbackTarget === number ? 'correct' : ''}" data-hunt-number="${number}" aria-label="${number}" ${completed.has(number) || game.locked ? 'disabled' : ''}><b>${number}</b>${completed.has(number) ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}</div><div class="game-actions"><span class="gentle-hint">Tap the number you hear.</span></div></section>`;
+};
+
+const announceNumberHunt = async activeGame => {
+  if (game !== activeGame || currentScreen !== 'numberHunt') return;
+  const activeRound = activeGame.round;
+  activeGame.locked = true;
+  renderNumberHunt();
+  const target = activeGame.order[activeRound];
+  await speakAsync(`${numberWord(target)}.`, numberAudio(target));
+  if (game !== activeGame || currentScreen !== 'numberHunt' || activeGame.round !== activeRound) return;
+  activeGame.locked = false;
+  renderNumberHunt();
+};
+
+const answerNumberHunt = async button => {
+  if (game.locked) return;
+  const target = game.order[game.round];
+  if (Number(button.dataset.huntNumber) !== target) return wrongAnswer(button);
+  const activeGame = game;
+  const activeRound = game.round;
+  game.locked = true;
+  game.feedbackTarget = target;
+  renderNumberHunt();
+  await speakAsync(`${numberWord(target)}.`, numberAudio(target));
+  if (game !== activeGame || currentScreen !== 'numberHunt' || game.round !== activeRound) return;
+  await playFeedbackAsync('great');
+  if (game !== activeGame || currentScreen !== 'numberHunt' || game.round !== activeRound) return;
+  game.completed.push(target);
+  game.feedbackTarget = null;
+  renderNumberHunt();
+  await new Promise(resolve => window.setTimeout(resolve, 450));
+  if (game !== activeGame || currentScreen !== 'numberHunt' || game.round !== activeRound) return;
+  if (game.completed.length === game.order.length) return renderComplete('numberHunt');
+  game.round += 1;
+  await announceNumberHunt(activeGame);
+};
+
+const beginColourHunt = () => {
+  game = { type: 'colourHunt', order: shuffle(huntColours.map(colour => colour.id)), round: 0, completed: [], locked: true, feedbackTarget: null };
+  renderColourHunt();
+  startGameClock();
+  screenTimer = window.setTimeout(() => announceColourHunt(game), 350);
+};
+
+const renderColourHunt = () => {
+  const completed = new Set(game.completed);
+  main.innerHTML = `<section class="game-screen hunt-screen">${huntHeader('Colour Hunt', '🎨', completed.size, huntColours.length)}<div class="instruction-row">${listenButton('HEAR AGAIN')}</div><div class="hunt-board colour-hunt-board">${huntColours.map(colour => `<button class="hunt-tile colour-hunt-tile colour-${colour.id} ${completed.has(colour.id) ? 'completed' : ''} ${game.feedbackTarget === colour.id ? 'correct' : ''}" style="--tile-colour:${colour.value}" data-hunt-colour="${colour.id}" aria-label="${colour.id} colour" ${completed.has(colour.id) || game.locked ? 'disabled' : ''}>${completed.has(colour.id) ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}</div><div class="game-actions"><span class="gentle-hint">Tap the colour you hear.</span></div></section>`;
+};
+
+const announceColourHunt = async activeGame => {
+  if (game !== activeGame || currentScreen !== 'colourHunt') return;
+  const activeRound = activeGame.round;
+  activeGame.locked = true;
+  renderColourHunt();
+  const target = activeGame.order[activeRound];
+  await speakAsync(`${target}.`);
+  if (game !== activeGame || currentScreen !== 'colourHunt' || activeGame.round !== activeRound) return;
+  activeGame.locked = false;
+  renderColourHunt();
+};
+
+const answerColourHunt = async button => {
+  if (game.locked) return;
+  const target = game.order[game.round];
+  if (button.dataset.huntColour !== target) return wrongAnswer(button);
+  const activeGame = game;
+  const activeRound = game.round;
+  game.locked = true;
+  game.feedbackTarget = target;
+  renderColourHunt();
+  await speakAsync(`${target}.`);
+  if (game !== activeGame || currentScreen !== 'colourHunt' || game.round !== activeRound) return;
+  await playFeedbackAsync('great');
+  if (game !== activeGame || currentScreen !== 'colourHunt' || game.round !== activeRound) return;
+  game.completed.push(target);
+  game.feedbackTarget = null;
+  renderColourHunt();
+  await new Promise(resolve => window.setTimeout(resolve, 450));
+  if (game !== activeGame || currentScreen !== 'colourHunt' || game.round !== activeRound) return;
+  if (game.completed.length === game.order.length) return renderComplete('colourHunt');
+  game.round += 1;
+  await announceColourHunt(activeGame);
+};
+
 const renderComplete = screen => {
   const seconds = recordCompletion(screen);
   const best = Number(localStorage.getItem(`foxJunior_bestTime_${screen}`) || seconds);
@@ -578,7 +691,7 @@ const renderComplete = screen => {
 
 const renderBackpack = () => {
   game = null;
-  main.innerHTML = `<section class="backpack-screen">${header('My Backpack', '🎒', 0, 0)}<div class="backpack-intro"><img src="${foxAsset('Fox-happy.jpg')}" alt="Happy Foxy"><div><span>YOUR REWARDS</span><h2>Keep exploring!</h2></div></div><div class="reward-grid">${Object.entries(SCREENS).map(([key, item]) => `<article class="reward-card ${completed[key] ? 'earned' : 'locked'}"><div class="reward-picture"><img src="${item.learningPicture ? learningAsset(item.learningPicture) : objectAsset(item.picture)}" alt=""><span aria-hidden="true">${completed[key] ? '★' : '?'}</span></div><h3>${item.title}</h3><b>${completed[key] ? '✓ COMPLETED!' : 'NOT COMPLETED'}</b></article>`).join('')}</div></section>`;
+  main.innerHTML = `<section class="backpack-screen">${header('My Backpack', '🎒', 0, 0)}<div class="backpack-intro"><img src="${foxAsset('Fox-happy.jpg')}" alt="Happy Foxy"><div><span>YOUR REWARDS</span><h2>Keep exploring!</h2></div></div><div class="reward-grid">${Object.entries(SCREENS).map(([key, item]) => `<article class="reward-card ${completed[key] ? 'earned' : 'locked'}"><div class="reward-picture"><img src="${rewardArtSource(item)}" alt=""><span aria-hidden="true">${completed[key] ? '★' : '?'}</span></div><h3>${item.title}</h3><b>${completed[key] ? '✓ COMPLETED!' : 'NOT COMPLETED'}</b></article>`).join('')}</div></section>`;
 };
 
 const renderScreen = screen => {
@@ -591,6 +704,8 @@ const renderScreen = screen => {
   else if (screen === 'count') beginCount();
   else if (screen === 'math') beginMath();
   else if (screen === 'missing') beginMissing();
+  else if (screen === 'numberHunt') beginNumberHunt();
+  else if (screen === 'colourHunt') beginColourHunt();
   else if (screen === 'backpack') renderBackpack();
   main.focus({ preventScroll: true });
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -703,6 +818,8 @@ const replayInstruction = () => {
   else if (game.type === 'match') playMatchInstruction();
   else if (game.type === 'count') { const number = game.order[game.round].number; speak(numberWord(number), numberAudio(number)); }
   else if (game.type === 'math') { const item = game.order[game.round]; speak(`${numberWord(item.a)} plus ${numberWord(item.b)} equals.`); }
+  else if (game.type === 'numberHunt') { const number = game.order[game.round]; speak(numberWord(number), numberAudio(number)); }
+  else if (game.type === 'colourHunt') speak(game.order[game.round]);
   else if (game.type === 'missing') {
     if (game.phase === 'question' || game.phase === 'choose') speak('What’s missing?', whatsMissingFile);
     else if (game.highlight >= 0) sayWord(game.order[game.round][game.highlight]);
@@ -722,6 +839,8 @@ document.addEventListener('click', event => {
   const number = event.target.closest('[data-number]'); if (number) return answerCount(number);
   const math = event.target.closest('[data-math]'); if (math) return answerMath(math);
   const missing = event.target.closest('[data-missing]'); if (missing) return answerMissing(missing);
+  const huntNumber = event.target.closest('[data-hunt-number]'); if (huntNumber) return answerNumberHunt(huntNumber);
+  const huntColour = event.target.closest('[data-hunt-colour]'); if (huntColour) return answerColourHunt(huntColour);
   const replayGame = event.target.closest('[data-replay-game]'); if (replayGame) return renderScreen(replayGame.dataset.replayGame);
 });
 
