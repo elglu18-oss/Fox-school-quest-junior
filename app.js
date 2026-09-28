@@ -61,6 +61,8 @@ const huntColours = [
   { id: 'purple', value: '#874dcc' }, { id: 'red', value: '#ed5a54' },
   { id: 'orange', value: '#f28b32' }, { id: 'grey', value: '#8d969d' }
 ];
+const colourFiles = Object.fromEntries(huntColours
+  .map(({ id }) => [id, audioAsset('colours', `${id}.mp3.mp3`)]));
 const tapFindFiles = Object.fromEntries(['bag','book','crayon','notebook','pen','pencil','rubber','ruler','scissors','sharpener']
   .map(id => [id, audioAsset('tap-find', `find-the-${id}.mp3.mp3`)]));
 const whatsMissingFile = audioAsset("what's missing", "what's- missing.mp3");
@@ -222,23 +224,28 @@ const speakFallback = (text, token) => {
   speechSynthesis.speak(utterance);
 };
 
-const speak = (text, file = null) => {
+const speak = (text, file = null, allowFallback = true) => {
   stopSpeech();
   if (!soundEnabled) return;
   const token = speechToken;
   duckMusic(true);
   if (!file) {
-    speakFallback(text, token);
+    if (allowFallback) speakFallback(text, token);
+    else duckMusic(false);
     return;
   }
   spokenAudio = new Audio(file);
   spokenAudio.volume = 1;
   spokenAudio.onended = () => { if (token === speechToken) duckMusic(false); };
-  spokenAudio.onerror = () => speakFallback(text, token);
-  spokenAudio.play().catch(() => speakFallback(text, token));
+  const handleError = () => {
+    if (allowFallback) speakFallback(text, token);
+    else if (token === speechToken) duckMusic(false);
+  };
+  spokenAudio.onerror = handleError;
+  spokenAudio.play().catch(handleError);
 };
 
-const speakAsync = (text, file = null) => {
+const speakAsync = (text, file = null, allowFallback = true) => {
   stopSpeech();
   if (!soundEnabled) return Promise.resolve();
   const token = speechToken;
@@ -256,6 +263,7 @@ const speakAsync = (text, file = null) => {
     const useEnglishSpeech = () => {
       if (fallbackStarted || settled) return;
       fallbackStarted = true;
+      if (!allowFallback) return finish();
       if (token !== speechToken || !('speechSynthesis' in window)) return finish();
       spokenAudio = null;
       const utterance = new SpeechSynthesisUtterance(text);
@@ -364,7 +372,7 @@ const huntHeader = (title, icon, found, total) => `
     <div class="hunt-progress" aria-label="${found} of ${total} found"><small>FOUND</small><b>${found} / ${total}</b></div>
   </div>`;
 
-const listenButton = text => `<button class="listen-button" data-action="replay" aria-label="Play the instruction again"><span aria-hidden="true">🔊</span><b>${text}</b></button>`;
+const listenButton = (text, disabled = false) => `<button class="listen-button" data-action="replay" aria-label="Play the instruction again" ${disabled ? 'disabled' : ''}><span aria-hidden="true">🔊</span><b>${text}</b></button>`;
 const nextButton = () => `<button class="next-button" data-action="next">NEXT <span aria-hidden="true">▶</span></button>`;
 const homeArtSource = item => item.homeArtPath || (item.homeArtFolder === 'ui' ? uiAsset(item.homeArt) : foxAsset(item.homeArt));
 const rewardArtSource = item => item.rewardArtPath || (item.learningPicture ? learningAsset(item.learningPicture) : objectAsset(item.picture));
@@ -647,7 +655,7 @@ const beginColourHunt = () => {
 
 const renderColourHunt = () => {
   const completed = new Set(game.completed);
-  main.innerHTML = `<section class="game-screen hunt-screen">${huntHeader('Colour Hunt', '🎨', completed.size, huntColours.length)}<div class="instruction-row">${listenButton('HEAR AGAIN')}</div><div class="hunt-board colour-hunt-board">${huntColours.map(colour => `<button class="hunt-tile colour-hunt-tile colour-${colour.id} ${completed.has(colour.id) ? 'completed' : ''} ${game.feedbackTarget === colour.id ? 'correct' : ''}" style="--tile-colour:${colour.value}" data-hunt-colour="${colour.id}" aria-label="${colour.id} colour" ${completed.has(colour.id) || game.locked ? 'disabled' : ''}>${completed.has(colour.id) ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}</div><div class="game-actions"><span class="gentle-hint">Tap the colour you hear.</span></div></section>`;
+  main.innerHTML = `<section class="game-screen hunt-screen">${huntHeader('Colour Hunt', '🎨', completed.size, huntColours.length)}<div class="instruction-row">${listenButton('HEAR AGAIN', game.locked)}</div><div class="hunt-board colour-hunt-board">${huntColours.map(colour => `<button class="hunt-tile colour-hunt-tile colour-${colour.id} ${completed.has(colour.id) ? 'completed' : ''} ${game.feedbackTarget === colour.id ? 'correct' : ''}" style="--tile-colour:${colour.value}" data-hunt-colour="${colour.id}" aria-label="${colour.id} colour" ${completed.has(colour.id) || game.locked ? 'disabled' : ''}>${completed.has(colour.id) ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}</div><div class="game-actions"><span class="gentle-hint">Tap the colour you hear.</span></div></section>`;
 };
 
 const announceColourHunt = async activeGame => {
@@ -656,7 +664,7 @@ const announceColourHunt = async activeGame => {
   activeGame.locked = true;
   renderColourHunt();
   const target = activeGame.order[activeRound];
-  await speakAsync(`${target}.`);
+  await speakAsync(`${target}.`, colourFiles[target], false);
   if (game !== activeGame || currentScreen !== 'colourHunt' || activeGame.round !== activeRound) return;
   activeGame.locked = false;
   renderColourHunt();
@@ -671,7 +679,7 @@ const answerColourHunt = async button => {
   game.locked = true;
   game.feedbackTarget = target;
   renderColourHunt();
-  await speakAsync(`${target}.`);
+  await speakAsync(`${target}.`, colourFiles[target], false);
   if (game !== activeGame || currentScreen !== 'colourHunt' || game.round !== activeRound) return;
   await playFeedbackAsync('great');
   if (game !== activeGame || currentScreen !== 'colourHunt' || game.round !== activeRound) return;
@@ -823,7 +831,10 @@ const replayInstruction = () => {
   else if (game.type === 'count') { const number = game.order[game.round].number; speak(numberWord(number), numberAudio(number)); }
   else if (game.type === 'math') playMathEquation(game.order[game.round]);
   else if (game.type === 'numberHunt') { const number = game.order[game.round]; speak(numberWord(number), numberAudio(number)); }
-  else if (game.type === 'colourHunt') speak(game.order[game.round]);
+  else if (game.type === 'colourHunt') {
+    const target = game.order[game.round];
+    speak(`${target}.`, colourFiles[target], false);
+  }
   else if (game.type === 'missing') {
     if (game.phase === 'question' || game.phase === 'choose') speak('What’s missing?', whatsMissingFile);
     else if (game.highlight >= 0) sayWord(game.order[game.round][game.highlight]);
